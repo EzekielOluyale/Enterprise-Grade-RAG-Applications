@@ -13,6 +13,7 @@ from app.ingestion.loaders.pdf import parse_pdf
 from app.ingestion.loaders.html import parse_html
 from app.ingestion.loaders.text import parse_text
 from app.ingestion.chunking.splitter import chunk_text
+from app.ingestion.cleaner import clean_amusEcode_data
 
 logfire.configure(service_name="enterprise-ingestion-service")
 
@@ -58,6 +59,14 @@ def process_file(file_path: str, filename: str, source_type: str):
             if not full_text or not full_text.strip():
                 logfire.warning(f"No text extracted from {filename} — skipping.")
                 return
+
+            # Cleaning injestion block
+            with logfire.span("Cleaning Extracted Text"):
+                full_text = clean_amusEcode_data(full_text)
+                
+                if not full_text.strip():
+                    logfire.warning(f"Text is empty after cleaning {filename} — skipping.")
+                    return
 
             # Chunk text
             chunks = chunk_text(full_text)

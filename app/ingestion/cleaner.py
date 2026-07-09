@@ -1,11 +1,13 @@
 import re
 
-def clean_lumio_data(raw_text: str) -> str:
+def clean_amusEcode_data(raw_text: str) -> str:
     """
     A production-grade text cleaner for corporate PDF extractions.
     Strips repetitive layout noise, boilerplate, and normalizes formatting
     so the vector database only receives high-signal 'True Data'.
     """
+
+    cleaned_text = raw_text
 
     # Removes standard "Page 1", "Page 1 of 10", "pg 4" 
     # (?i) makes it case-insensitive
