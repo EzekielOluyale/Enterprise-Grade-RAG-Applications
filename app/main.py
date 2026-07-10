@@ -16,7 +16,6 @@ from app.agents.graph import rag_agent
 from pydantic import BaseModel
 from typing import Optional
 
-
 # Initialize FastAPI
 app = FastAPI(title="Enterprise Agentic RAG API")
 
