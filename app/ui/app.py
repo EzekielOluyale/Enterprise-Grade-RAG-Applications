@@ -6,11 +6,9 @@ import uuid
 import logfire
 from dotenv import load_dotenv
 
-
 # Load environment variables explicitly from the root directory
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(dotenv_path=env_path)
-
 
 # Initialize Logfire
 try:
@@ -24,21 +22,18 @@ except Exception as e:
     print(f"Logfire Init Error in UI: {e}")
     LOGFIRE_STATUS = f"Standby (Error: {e})"
     
-
-
-# --- PAGE CONFIG ---
+# PAGE CONFIG 
 st.set_page_config(
     page_title="Enterprise Agentic RAG",
     page_icon="🤖",
     layout="wide",
 )
 
-# --- AVATARS ---
+# AVATARS 
 AI_AVATAR = "🤖"
 USER_AVATAR = "👤"
 
-
-# --- SESSION MANAGEMENT ---
+# SESSION MANAGEMENT 
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
     logfire.info(f"✨ New User Session Created: {st.session_state.session_id}")
@@ -46,8 +41,7 @@ if "session_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-
-# --- SIDEBAR ---
+# SIDEBAR 
 with st.sidebar:
     st.title("🧠 Agent OS")
     st.markdown("---")
@@ -60,9 +54,8 @@ with st.sidebar:
         st.session_state.session_id = str(uuid.uuid4())
         st.rerun()
 
-# --- MAIN CHAT ---
+# MAIN CHAT 
 st.title("🤖 Enterprise Agentic Assistant")
-
 
 # Display history
 for message in st.session_state.messages:
@@ -99,7 +92,7 @@ if prompt := st.chat_input("Ask about your documentation..."):
                     
                     status.update(label="✅ Answer Synthesized", state="complete", expanded=False)
                     
-                    # --- SHOW SOURCES (NESTED EXPANDABLES) ---
+                    # SHOW SOURCES (NESTED EXPANDABLES) 
                     sources = data.get("sources", [])
                     if sources:
                         with st.expander("📄 View Retrieved Context (Sources)"):
