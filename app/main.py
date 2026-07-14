@@ -17,10 +17,8 @@ from app.guardrails.rails import initialize_rails, guard
 from pydantic import BaseModel
 from typing import Optional
 
-
 # Initialize FastAPI
 app = FastAPI(title="Enterprise Agentic RAG API")
-
 
 @app.on_event("startup")
 def startup_event():
@@ -30,11 +28,9 @@ class QueryRequest(BaseModel):
     q: str
     thread_id: Optional[str] = "default_user"
     
-    
 @app.get("/")
 def home():
     return {"message": "Enterprise LangGraph RAG API is live."}
-
 
 @app.get("/graph")
 def get_graph_image():
@@ -46,7 +42,6 @@ def get_graph_image():
         return Response(content=png_bytes, media_type="image/png")
     except Exception as e:
         return {"error": f"Could not generate graph image: {e}"}
-    
     
 @app.post("/query")
 def query(request: QueryRequest):
