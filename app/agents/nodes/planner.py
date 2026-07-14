@@ -1,14 +1,9 @@
 from app.agents.state import AgentState
-from app.config import settings
-from langchain_groq import ChatGroq
+from app.gateway.client import get_langchain_llm
 import logfire
 
-# Direct Groq call
-llm = ChatGroq(
-    api_key=settings.GROQ_API_KEY,
-    model=settings.GROQ_MODEL,
-    temperature=0
-)
+# Portkey-backed LLM: fallback + cache + retry — same .invoke() interface as ChatGroq
+llm = get_langchain_llm(feature="planner")
 
 def planner_node(state: AgentState):
     """
