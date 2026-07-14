@@ -12,7 +12,7 @@ logfire.configure(token=os.getenv("LOGFIRE_TOKEN"))
 # Now safe to import app modules - logfire is already active
 from fastapi import FastAPI, Response
 from app.agents.graph import rag_agent
-from app.guardrails import initialize_rails, guard
+from app.guardrails.rails import initialize_rails, guard
 
 from pydantic import BaseModel
 from typing import Optional
