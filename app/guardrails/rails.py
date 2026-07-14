@@ -31,8 +31,6 @@ def initialize_rails() -> None:
     _rails = LLMRails(config, llm=guard_llm)
     logfire.info("🛡️ NeMo Guardrails initialised (llama-3.1-8b-instant).")
     
-    
-
 
 def guard(message: str) -> tuple[bool, str | None]:
     """
