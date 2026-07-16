@@ -220,3 +220,5 @@ __marimo__/
 .logfire
 
 DATA
+
+gcp-key.json
