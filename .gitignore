@@ -222,3 +222,5 @@ __marimo__/
 DATA
 
 gcp-key.json
+
+processed_data
