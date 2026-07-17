@@ -25,7 +25,6 @@ qdrant_client = QdrantClient(
     api_key=settings.QDRANT_API_KEY,
 )
 
-
 def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
     """Save parsed chunk metadata as JSON in processed_data/<source_type>/."""
     folder = os.path.join(PROCESSED_DATA_DIR, source_type)
@@ -34,7 +33,6 @@ def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
     with open(dest, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return dest
-
 
 def process_file(file_path: str, filename: str, source_type: str):
     """Parse → chunk → save locally → embed → index in Qdrant."""
@@ -98,7 +96,6 @@ def process_file(file_path: str, filename: str, source_type: str):
         except Exception as e:
             logfire.error(f"Failed to process {filename}: {e}")
 
-
 def process_directory(dir_path: str, source_type: str):
     """Process every file in a directory."""
     with logfire.span("Scanning Directory", path=dir_path, source=source_type):
@@ -106,7 +103,6 @@ def process_directory(dir_path: str, source_type: str):
         logfire.info(f"Found {len(files)} files in {dir_path}.")
         for filename in files:
             process_file(os.path.join(dir_path, filename), filename, source_type)
-
 
 def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wipe: bool = False):
     """
@@ -163,7 +159,6 @@ def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wip
                     else subdir
                 )
                 process_directory(os.path.join(base_dir, subdir), source_type)
-
 
 if __name__ == "__main__":
     # Usage:
