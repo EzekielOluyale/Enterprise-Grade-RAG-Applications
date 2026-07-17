@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 
+from app.gateway.client import PORTKEY_EMBEDDING_CONFIG_ID
+
 # Load environment variables
 load_dotenv()
 
@@ -11,6 +13,7 @@ class Settings:
     # --- VERTEX AI EMBEDDINGS ---
     GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
     GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 
     # --- VECTOR DB (QDRANT) ---
     QDRANT_URL = os.getenv("QDRANT_CLUSTER_ENDPOINT")
@@ -19,15 +22,16 @@ class Settings:
 
     # --- REASONING ENGINE (GROQ) ---
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    GROQ_MODEL = "llama-3.3-70b-versatile"
-    GROQ_FALLBACK_API_KEY = os.getenv("GROQ_FALLBACK_API_KEY")
+    GROQ_MODEL = os.getenv("GROQ_MODEL")
 
     # --- LLM GATEWAY (PORTKEY) ---
     PORTKEY_API_KEY = os.getenv("PORTKEY_API_KEY")
     PORTKEY_CONFIG_ID = os.getenv("PORTKEY_CONFIG_ID")
+    PORTKEY_EMBEDDING_CONFIG_ID = os.getenv("PORTKEY_EMBEDDING_CONFIG_ID")
 
-    GROQ_SLUG =  "enterprise-grade-rag-applications"     # primary: @rag/llama-3.3-70b-versatile
-    GROQ_SLUG_2 = "enterprise-grade-rag-applications2"  # fallback: @brag/llama-3.1-8b-instant
+    GROQ_SLUG =  "groq"     
+    GEMINI_SLUG = "gemini"  
+    VERTEXAI_SLUG = "vertex-ai"
 
     
     # --- OBSERVABILITY ---
