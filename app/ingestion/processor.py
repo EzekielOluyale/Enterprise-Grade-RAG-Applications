@@ -13,11 +13,8 @@ from app.ingestion.loaders.pdf import parse_pdf
 from app.ingestion.loaders.html import parse_html
 from app.ingestion.loaders.text import parse_text
 from app.ingestion.chunking.splitter import chunk_text
-from app.ingestion.cleaner import clean_amusEcode_data
 
 logfire.configure(service_name="enterprise-ingestion-service")
-
-clean_args = sys.argv[1:]
 
 # Local folder where parsed + chunked JSON metadata is saved (replaces GCS processed bucket)
 PROCESSED_DATA_DIR = "processed_data"
@@ -28,6 +25,7 @@ qdrant_client = QdrantClient(
     api_key=settings.QDRANT_API_KEY,
 )
 
+
 def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
     """Save parsed chunk metadata as JSON in processed_data/<source_type>/."""
     folder = os.path.join(PROCESSED_DATA_DIR, source_type)
@@ -37,11 +35,12 @@ def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return dest
 
+
 def process_file(file_path: str, filename: str, source_type: str):
     """Parse → chunk → save locally → embed → index in Qdrant."""
     with logfire.span("Processing File", file=filename, source=source_type):
         try:
-            # Extract text based on file extension
+            # 1. Extract text based on file extension
             ext = filename.lower().rsplit(".", 1)[-1]
             if ext == "pdf":
                 full_text = parse_pdf(file_path)
@@ -60,20 +59,12 @@ def process_file(file_path: str, filename: str, source_type: str):
                 logfire.warning(f"No text extracted from {filename} — skipping.")
                 return
 
-            # Cleaning injestion block
-            with logfire.span("Cleaning Extracted Text"):
-                full_text = clean_amusEcode_data(full_text)
-                
-                if not full_text.strip():
-                    logfire.warning(f"Text is empty after cleaning {filename} — skipping.")
-                    return
-
-            # Chunk text
+            # 2. Chunk text
             chunks = chunk_text(full_text)
             if not chunks:
                 return
 
-            # Save processed metadata locally
+            # 3. Save processed metadata locally
             processed_data = {
                 "filename": filename,
                 "source_type": source_type,
@@ -82,7 +73,7 @@ def process_file(file_path: str, filename: str, source_type: str):
             local_path = save_processed_locally(processed_data, source_type, filename)
             logfire.info(f"Saved processed data → {local_path}")
 
-            # Embed and index in Qdrant
+            # 4. Embed and index in Qdrant
             with logfire.span("Vectorizing & Indexing"):
                 embeddings = embed_texts(chunks)
                 points = [
