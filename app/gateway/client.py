@@ -1,16 +1,18 @@
 import logfire
 from portkey_ai import Portkey, createHeaders, PORTKEY_GATEWAY_URL
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 from app.config import settings
 
 
 # Production gateway config:
-#   - Fallback: primary @rag/llama-3.3-70b-versatile → @brag/llama-3.1-8b-instant on failure
+#   - Fallback: primary @groq/llama-3.3-70b-versatile → @vertex-ai/gemini-3.5-flash on failure
 #   - Cache: semantic mode (requires Portkey Enterprise — silently falls back to simple on free/starter)
 #   - Retry: 2 attempts on rate limit / server error before triggering the fallback target
 
-PORTKEY_CONFIG_ID = "pc-enterp-21d01e"
+PORTKEY_CONFIG_ID = settings.PORTKEY_CONFIG_ID
+
+PORTKEY_EMBEDDING_CONFIG_ID = settings.PORTKEY_EMBEDDING_CONFIG_ID
 
 portkey_client = Portkey(
     api_key=settings.PORTKEY_API_KEY,
@@ -37,6 +39,29 @@ def get_langchain_llm(feature: str = "rag") -> ChatOpenAI:
         default_headers=createHeaders(
             api_key=settings.PORTKEY_API_KEY,
             config=PORTKEY_CONFIG_ID,
+            metadata={
+                "feature": feature,
+                "_user": "rag-system",
+                "environment": "production"
+            }
+        )
+    )
+
+def get_langchain_embeddings(feature: str = "rag-embeddings") -> OpenAIEmbeddings:
+    """
+    Returns a Portkey-backed OpenAIEmbeddings instance for vectorizing data.
+
+    Like ChatOpenAI, OpenAIEmbeddings natively accepts a custom base_url and 
+    default_headers, allowing Portkey to intercept the request and handle 
+    automatic fallback routing between your Vertex AI and AI Studio virtual keys.
+    """
+    return OpenAIEmbeddings(
+        api_key=settings.PORTKEY_API_KEY,  
+        base_url=PORTKEY_GATEWAY_URL,
+        model=f"@{settings.GEMINI_SLUG}/text-embedding-004",
+        default_headers=createHeaders(
+            api_key=settings.PORTKEY_API_KEY,
+            config=PORTKEY_EMBEDDING_CONFIG_ID,  
             metadata={
                 "feature": feature,
                 "_user": "rag-system",
