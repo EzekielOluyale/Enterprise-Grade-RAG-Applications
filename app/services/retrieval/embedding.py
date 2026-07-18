@@ -48,7 +48,7 @@ def embed_query(query: str) -> list[float]:
     try:
         response = _portkey_client.embeddings.create(
             input=[query],
-            model=settings.EMBEDDING_MODEL  
+            model=settings.VERTEXAI_EMBEDDING_MODEL
         )
         return response.data[0].embedding
     except Exception as e:
@@ -73,7 +73,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
                 # all retries and fallbacks from your Config ID.
                 response = _portkey_client.embeddings.create(
                     input=batch,
-                    model=settings.EMBEDDING_MODEL
+                    model=settings.VERTEXAI_EMBEDDING_MODEL
                 )
                 batch_embeddings = [item.embedding for item in response.data]
                 all_embeddings.extend(batch_embeddings)
