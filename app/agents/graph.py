@@ -34,6 +34,5 @@ workflow.add_conditional_edges(
     }
 )
 
-
 workflow.add_edge("retriever", "responder")
 workflow.add_edge("responder", END)
