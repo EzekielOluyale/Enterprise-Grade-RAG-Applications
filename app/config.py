@@ -1,8 +1,6 @@
 import os
 from dotenv import load_dotenv
 
-from app.gateway.client import PORTKEY_EMBEDDING_CONFIG_ID
-
 # Load environment variables
 load_dotenv()
 
@@ -20,6 +18,9 @@ class Settings:
     QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
     QDRANT_COLLECTION = "enterprise_rag"
 
+    # --- DATABASE (SUPABASE) ---
+    SUPABASE_URI = os.getenv("SUPABASE_URL")
+
     # --- REASONING ENGINE (GROQ) ---
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     GROQ_MODEL = os.getenv("GROQ_MODEL")
@@ -33,7 +34,6 @@ class Settings:
     GEMINI_SLUG = "gemini"  
     VERTEXAI_SLUG = "vertex-ai"
 
-    
     # --- OBSERVABILITY ---
     LANGSMITH_TRACING = os.getenv("LANGSMITH_TRACING", "true")
     LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
