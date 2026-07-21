@@ -75,7 +75,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://lumioafrica.com", "https://www.lumioafrica.com"],  # In production, replace ["*"] with your actual frontend URLs
+    allow_origins=["*"],  # In production, replace ["*"] with your actual frontend URLs
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
