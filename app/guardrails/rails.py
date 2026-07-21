@@ -5,9 +5,7 @@ from nemoguardrails import RailsConfig, LLMRails
 from app.config import settings
 from app.guardrails.colang_rules import COLANG_CONTENT, YAML_CONTENT, RAIL_INDICATORS
 
-
 _rails: LLMRails | None = None
-
 
 def initialize_rails() -> None:
     """
@@ -31,7 +29,6 @@ def initialize_rails() -> None:
     _rails = LLMRails(config, llm=guard_llm)
     logfire.info("🛡️ NeMo Guardrails initialised (llama-3.1-8b-instant).")
     
-
 def guard(message: str) -> tuple[bool, str | None]:
     """
     Run a user message through the NeMo rails gate.
