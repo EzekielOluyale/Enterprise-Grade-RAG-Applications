@@ -14,6 +14,7 @@ logfire.configure(token=os.getenv("LOGFIRE_TOKEN"))
 from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List
 from psycopg_pool import AsyncConnectionPool
@@ -22,6 +23,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.agents.graph import workflow
 from app.guardrails.rails import initialize_rails, guard
+from app.utils.streaming import stream_agent, format_sse
 from app.config import settings
 
 # Global variable to hold the compiled agent
@@ -195,3 +197,52 @@ async def query(request: QueryRequest):
             "status": "error",
             "sources": []
         }
+
+@app.post("/stream")
+async def query(request: QueryRequest):
+    """
+    Executes the LangGraph RAG flow and streams the output via SSE.
+    """
+    q = request.q
+    thread_id = request.thread_id
+
+    initial_state = {
+        "messages": [{"role": "user", "content": q}],
+        "current_query": q,
+        "documents": [],
+        "plan": ["Start"],
+        "status": "Initializing Graph...",
+        "final_answer": ""
+    }
+    
+    config = {"configurable": {"thread_id": thread_id}}
+    
+    # Gate 1: NeMo Guardrails
+    rail_fired, rail_response = await run_in_threadpool(guard, q)
+    if rail_fired:
+        logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
+        
+        async def blocked_stream():
+            yield format_sse("status", "Blocked by guardrails.")
+            yield format_sse("token", rail_response)
+            
+            # Send empty metadata to match the new schema structure
+            yield format_sse("metadata", {"sources": [], "thread_id": thread_id})
+            yield format_sse("end")
+            
+        return StreamingResponse(
+            blocked_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+        )
+
+    # Gate 2: Pass into the standalone generator
+    return StreamingResponse(
+        stream_agent(rag_agent, initial_state, config, thread_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
