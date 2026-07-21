@@ -58,7 +58,7 @@ def get_langchain_embeddings(feature: str = "rag-embeddings") -> OpenAIEmbedding
     return OpenAIEmbeddings(
         api_key=settings.PORTKEY_API_KEY,  
         base_url=PORTKEY_GATEWAY_URL,
-        model=f"@{settings.GEMINI_SLUG}/text-embedding-004",
+        model=f"@{settings.GEMINI_SLUG}/{settings.VERTEXAI_EMBEDDING_MODEL}",
         default_headers=createHeaders(
             api_key=settings.PORTKEY_API_KEY,
             config=PORTKEY_EMBEDDING_CONFIG_ID,  
