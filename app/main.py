@@ -8,7 +8,18 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 
 load_dotenv()
-logfire.configure(token=os.getenv("LOGFIRE_TOKEN"))
+logfire.configure(
+    token=os.getenv("LOGFIRE_TOKEN"),
+    service_name="enterprise-ingestion-service",
+    scrubbing=logfire.ScrubbingOptions(mask_sensitive_data=True)
+)
+
+logfire.configure(
+    service_name="enterprise-ingestion-service",
+    scrubbing=logfire.ScrubbingOptions(
+        mask_sensitive_data=True,
+    )
+)
 
 # Now safe to import app modules - logfire is already active
 from fastapi import FastAPI, Response, Request
@@ -225,9 +236,6 @@ async def query(request: QueryRequest):
         async def blocked_stream():
             yield format_sse("status", "Blocked by guardrails.")
             yield format_sse("token", rail_response)
-            
-            # Send empty metadata to match the new schema structure
-            yield format_sse("metadata", {"sources": [], "thread_id": thread_id})
             yield format_sse("end")
             
         return StreamingResponse(
