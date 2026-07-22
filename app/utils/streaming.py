@@ -67,15 +67,6 @@ async def stream_agent(agent_instance, initial_state: dict, config: dict, thread
                                 text = getattr(item, "text", None)
                                 if text:
                                     yield format_sse("token", text)
-
-        # 3. Extract State and emit Metadata
-        final_state = await agent_instance.aget_state(config)
-        documents = final_state.values.get("documents", [])
-        
-        yield format_sse("metadata", {
-            "sources": documents,
-            "thread_id": thread_id
-        })
         
         # Signal successful completion
         yield format_sse("end")
