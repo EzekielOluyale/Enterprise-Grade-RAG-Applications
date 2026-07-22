@@ -219,7 +219,7 @@ __marimo__/
 
 .logfire
 
-data/
+data
 
 gcp-key.json
 
