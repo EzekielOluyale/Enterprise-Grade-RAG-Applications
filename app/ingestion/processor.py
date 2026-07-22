@@ -3,6 +3,7 @@ import sys
 import uuid
 import json
 import logfire
+from dotenv import load_dotenv
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -14,7 +15,11 @@ from app.ingestion.loaders.html import parse_html
 from app.ingestion.loaders.text import parse_text
 from app.ingestion.chunking.splitter import chunk_text
 
-logfire.configure(service_name="enterprise-ingestion-service")
+load_dotenv()
+logfire.configure(
+    token=os.getenv("LOGFIRE_TOKEN"),
+    service_name="enterprise-ingestion-service",
+)
 
 # Local folder where parsed + chunked JSON metadata is saved (replaces GCS processed bucket)
 PROCESSED_DATA_DIR = "processed_data"
@@ -58,33 +63,42 @@ def process_file(file_path: str, filename: str, source_type: str):
                 return
 
             # 2. Chunk text
-            chunks = chunk_text(full_text)
-            if not chunks:
+            documents = chunk_text(full_text, source_name=filename)
+            if not documents:
                 return
+
+            # Extract into standard Python dicts for JSON serialization
+            serialized_chunks = [
+                {"page_content": doc.page_content, "metadata": doc.metadata}
+                for doc in documents
+            ]
 
             # 3. Save processed metadata locally
             processed_data = {
                 "filename": filename,
                 "source_type": source_type,
-                "chunks": chunks,
+                "chunks": serialized_chunks,
             }
+
             local_path = save_processed_locally(processed_data, source_type, filename)
             logfire.info(f"Saved processed data → {local_path}")
 
             # 4. Embed and index in Qdrant
             with logfire.span("Vectorizing & Indexing"):
-                embeddings = embed_texts(chunks)
+                text_contents = [doc.page_content for doc in documents]
+                embeddings = embed_texts(text_contents)
                 points = [
                     models.PointStruct(
                         id=str(uuid.uuid4()),
                         vector=vector,
                         payload={
-                            "text": chunk,
+                            "text": doc.page_content,
                             "source": filename,
                             "source_type": source_type,
+                            **doc.metadata,
                         },
                     )
-                    for chunk, vector in zip(chunks, embeddings)
+                    for doc, vector in zip(documents, embeddings)
                 ]
 
                 qdrant_client.upsert(
@@ -162,12 +176,12 @@ def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wip
 
 if __name__ == "__main__":
     # Usage:
-    #   python -m app.ingestion.processor DATA --wipe
-    #   python -m app.ingestion.processor DATA/true_data true
+    #   python -m app.ingestion.processor data --wipe
+    #   python -m app.ingestion.processor data/true_data true
     wipe_requested = "--wipe" in sys.argv
     clean_args = [a for a in sys.argv if a != "--wipe"]
 
-    target_dir = clean_args[1] if len(clean_args) > 1 else "DATA"
+    target_dir = clean_args[1] if len(clean_args) > 1 else "data"
     explicit_type = clean_args[2] if len(clean_args) > 2 else None
 
     if not os.path.exists(target_dir):
