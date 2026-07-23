@@ -89,9 +89,13 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
                 )
                 batch_embeddings = [item.embedding for item in response.data]
                 all_embeddings.extend(batch_embeddings)
+
+                # Debug check per batch
+                logfire.info(f"Batch index {i}: sent {len(batch)} texts, received {len(batch_embeddings)} embeddings")
                 
             except Exception as e:
                 logfire.error(f"❌ Portkey batch embedding failed at index {i}: {e}")
                 raise
-                
+
+    logfire.info(f"Total input texts: {len(texts)} | Total embeddings generated: {len(all_embeddings)}")   
     return all_embeddings
