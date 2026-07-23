@@ -2,7 +2,7 @@ import logfire
 from portkey_ai import Portkey
 from app.config import settings
 
-BATCH_SIZE = 50
+BATCH_SIZE = 5
 
 _portkey_chat_client = None
 _portkey_ingestion_client = None
