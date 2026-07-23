@@ -4,7 +4,6 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 from app.config import settings
 
-
 # Production gateway config:
 #   - Fallback: primary @groq/llama-3.3-70b-versatile → @vertex-ai/gemini-3.5-flash on failure
 #   - Cache: semantic mode (requires Portkey Enterprise — silently falls back to simple on free/starter)
@@ -16,7 +15,6 @@ portkey_client = Portkey(
     api_key=settings.PORTKEY_API_KEY,
     config=settings.PORTKEY_CONFIG_ID
 )
-
 
 def get_langchain_llm(feature: str = "rag") -> ChatOpenAI:
     """
