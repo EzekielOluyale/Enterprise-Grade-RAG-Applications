@@ -98,7 +98,7 @@ def process_file(file_path: str, filename: str, source_type: str):
                             **doc.metadata,
                         },
                     )
-                    for doc, vector in zip(documents, embeddings)
+                    for doc, vector in zip(documents, embeddings, strict=True)
                 ]
 
                 qdrant_client.upsert(
