@@ -85,7 +85,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
                 # all retries from your Config ID.
                 response = _portkey_ingestion_client.embeddings.create(
                     input=batch,
-                    model=settings.GEMINI_API_KEY
+                    model=settings.GEMINI_EMBEDDING
                 )
                 batch_embeddings = [item.embedding for item in response.data]
                 all_embeddings.extend(batch_embeddings)
