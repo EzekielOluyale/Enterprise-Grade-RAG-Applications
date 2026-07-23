@@ -36,6 +36,9 @@ def chunk_text(text: str, source_name: str = "document.pdf", chunk_size: int = 5
 
         for chunk in chunks:
             chunk.metadata["source"] = source_name
+
+        # Drop any empty or whitespace-only chunks
+        chunks = [chunk for chunk in chunks if chunk.page_content and chunk.page_content.strip()]
         
         logfire.info(
             "✅ Text chunking finished successfully", 
