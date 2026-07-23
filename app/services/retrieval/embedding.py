@@ -4,31 +4,43 @@ from app.config import settings
 
 BATCH_SIZE = 50
 
-_portkey_client = None
+_portkey_chat_client = None
+_portkey_ingestion_client = None
 _EMBEDDING_DIM = None
 
-def _init():
+def _init_chat_client():
     """Initializes the Portkey client lazily on first use."""
-    global _portkey_client
-    if _portkey_client is not None:
+    global _portkey_chat_client
+    if _portkey_chat_client is not None:
         return
 
     logfire.info("Connecting to Portkey Gateway for embeddings...")
-    _portkey_client = Portkey(
+    _portkey_chat_client = Portkey(
         api_key=settings.PORTKEY_API_KEY,
-        config=settings.PORTKEY_EMBEDDING_CONFIG_ID
+        config=settings.PORTKEY_CHAT_CONFIG_ID
+    )
+
+def _init_ingestion_client():
+    """Initializes the Portkey ingestion client lazily on first use."""
+    global _portkey_ingestion_client
+    if _portkey_ingestion_client is not None:
+        return
+
+    logfire.info("Connecting to Portkey Gateway for ingestion...")
+    _portkey_ingestion_client = Portkey(
+        api_key=settings.PORTKEY_API_KEY,
+        config=settings.PORTKEY_INGESTION_CONFIG_ID
     )
 
 # ── Public helpers ─────────────────────────────────────────────────────────────
 
 def get_embedding_dim() -> int:
     """
-    Dynamically fetches the embedding dimension size from the active model.
+    Dynamically fetches the embedding dimension size.
     Caches the result so it only probes the API once per startup.
     """
     global _EMBEDDING_DIM
     if _EMBEDDING_DIM is None:
-        _init()
         logfire.info("Probing Portkey embedding model to verify vector dimension...")
         try:
             sample_vector = embed_query("Dimension probe")
@@ -44,9 +56,9 @@ def get_embedding_dim() -> int:
 
 def embed_query(query: str) -> list[float]:
     """Generates an embedding for a single search query."""
-    _init()
+    _init_chat_client()
     try:
-        response = _portkey_client.embeddings.create(
+        response = _portkey_chat_client.embeddings.create(
             input=[query],
             model=settings.VERTEXAI_EMBEDDING_MODEL
         )
@@ -56,8 +68,8 @@ def embed_query(query: str) -> list[float]:
         raise
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Generates embeddings for a list of strings in batches via Portkey."""
-    _init()
+    """Generates embeddings for a list of strings sequentially"""
+    _init_ingestion_client()
     if not texts:
         return []
 
@@ -70,10 +82,10 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         with logfire.span("Embed batch", start=i, size=len(batch)):
             try:
                 # Portkey cleanly processes the batch array, inheriting 
-                # all retries and fallbacks from your Config ID.
-                response = _portkey_client.embeddings.create(
+                # all retries from your Config ID.
+                response = _portkey_ingestion_client.embeddings.create(
                     input=batch,
-                    model=settings.VERTEXAI_EMBEDDING_MODEL
+                    model=settings.GEMINI_API_KEY
                 )
                 batch_embeddings = [item.embedding for item in response.data]
                 all_embeddings.extend(batch_embeddings)
