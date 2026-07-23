@@ -11,14 +11,6 @@ load_dotenv()
 logfire.configure(
     token=os.getenv("LOGFIRE_TOKEN"),
     service_name="enterprise-ingestion-service",
-    scrubbing=logfire.ScrubbingOptions(mask_sensitive_data=True)
-)
-
-logfire.configure(
-    service_name="enterprise-ingestion-service",
-    scrubbing=logfire.ScrubbingOptions(
-        mask_sensitive_data=True,
-    )
 )
 
 # Now safe to import app modules - logfire is already active
