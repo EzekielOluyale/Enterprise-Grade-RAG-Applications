@@ -6,7 +6,7 @@ load_dotenv()
 
 class Settings:
     # --- GEMINI EMBEDDINGS ---
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    GEMINI_EMBEDDING = os.getenv("GEMINI_API_KEY")
 
     # --- VERTEX AI EMBEDDINGS ---
     GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
