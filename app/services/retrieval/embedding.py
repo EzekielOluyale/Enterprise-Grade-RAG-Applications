@@ -1,11 +1,13 @@
+import time
 import logfire
 from portkey_ai import Portkey
 from app.config import settings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-BATCH_SIZE = 5
+BATCH_SIZE = 50
 
 _portkey_chat_client = None
-_portkey_ingestion_client = None
+_ingestion_client = None
 _EMBEDDING_DIM = None
 
 def _init_chat_client():
@@ -21,15 +23,15 @@ def _init_chat_client():
     )
 
 def _init_ingestion_client():
-    """Initializes the Portkey ingestion client lazily on first use."""
-    global _portkey_ingestion_client
-    if _portkey_ingestion_client is not None:
+    """Initializes the LangChain native Gemini model lazily for bulk ingestion batching."""
+    global _ingestion_client
+    if _ingestion_client is not None:
         return
 
-    logfire.info("Connecting to Portkey Gateway for ingestion...")
-    _portkey_ingestion_client = Portkey(
-        api_key=settings.PORTKEY_API_KEY,
-        config=settings.PORTKEY_INGESTION_CONFIG_ID
+    logfire.info("Configuring native Google Gemini model for bulk ingestion batching...")
+    _ingestion_client = GoogleGenerativeAIEmbeddings(
+        model=settings.GEMINI_EMBEDDING,
+        google_api_key=settings.GEMINI_API_KEY,
     )
 
 # ── Public helpers ─────────────────────────────────────────────────────────────
@@ -51,6 +53,27 @@ def get_embedding_dim() -> int:
             raise
     return _EMBEDDING_DIM
 
+# ── Batch embedding with retry ─────────────────────────────────────────────────
+
+def _embed_batch(batch: list[str]) -> list[list[float]]:
+    """Sends a batch natively using exponential backoff for rate limits."""
+    for attempt in range(4):
+        try:
+            return _ingestion_client.embed_documents(batch)
+        except Exception as e:
+            err = str(e).lower()
+            is_rate_limit = any(x in err for x in ("429", "rate", "quota", "resource_exhausted"))
+            if is_rate_limit and attempt < 3:
+                wait = 2 ** attempt
+                logfire.warning(
+                    f"Gemini rate limit hit — retrying in {wait}s "
+                    f"(attempt {attempt + 1}/4)."
+                )
+                time.sleep(wait)
+            else:
+                logfire.error(f"Gemini embedding batch failed: {e}")
+                raise
+    raise RuntimeError("Gemini rate limit persisted after 4 attempts.")
 
 # ── Public API (same signatures as before) ─────────────────────────────────────
 
@@ -68,33 +91,24 @@ def embed_query(query: str) -> list[float]:
         raise
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Generates embeddings for a list of strings sequentially"""
+    """Generates embeddings for a list of strings using native batching (bypassing Portkey)."""
     _init_ingestion_client()
     if not texts:
         return []
 
     all_embeddings: list[list[float]] = []
     
-    # Process in chunks of BATCH_SIZE
+    # Process in chunks of BATCH_SIZE (50) natively
     for i in range(0, len(texts), BATCH_SIZE):
         batch = texts[i : i + BATCH_SIZE]
         
         with logfire.span("Embed batch", start=i, size=len(batch)):
             try:
-                # Portkey cleanly processes the batch array, inheriting 
-                # all retries from your Config ID.
-                response = _portkey_ingestion_client.embeddings.create(
-                    input=batch,
-                    model=settings.GEMINI_EMBEDDING
-                )
-                batch_embeddings = [item.embedding for item in response.data]
+                batch_embeddings = _embed_batch(batch)
                 all_embeddings.extend(batch_embeddings)
-
-                # Debug check per batch
-                logfire.info(f"Batch index {i}: sent {len(batch)} texts, received {len(batch_embeddings)} embeddings")
-                
+                logfire.info(f"Batch index {i}: sent {len(batch)} texts, received {len(batch_embeddings)} vectors")
             except Exception as e:
-                logfire.error(f"❌ Portkey batch embedding failed at index {i}: {e}")
+                logfire.error(f"❌ Batch ingestion pipeline failed at index {i}: {e}")
                 raise
 
     logfire.info(f"Total input texts: {len(texts)} | Total embeddings generated: {len(all_embeddings)}")   
