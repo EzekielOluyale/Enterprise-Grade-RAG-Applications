@@ -6,7 +6,8 @@ load_dotenv()
 
 class Settings:
     # --- GEMINI EMBEDDINGS ---
-    GEMINI_EMBEDDING = os.getenv("GEMINI_API_KEY")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    GEMINI_EMBEDDING = os.getenv("GEMINI_EMBEDDING")
 
     # --- VERTEX AI EMBEDDINGS ---
     GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
@@ -29,7 +30,6 @@ class Settings:
     PORTKEY_API_KEY = os.getenv("PORTKEY_API_KEY")
     PORTKEY_CONFIG_ID = os.getenv("PORTKEY_CONFIG_ID")
     PORTKEY_CHAT_CONFIG_ID = os.getenv("PORTKEY_CHAT_CONFIG_ID")
-    PORTKEY_INGESTION_CONFIG_ID = os.getenv("PORTKEY_INGESTION_CONFIG_ID")
 
     GROQ_SLUG =  "groq"     
     GEMINI_SLUG = "gemini"  
