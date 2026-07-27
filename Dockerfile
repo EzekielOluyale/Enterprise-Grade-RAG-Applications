@@ -26,6 +26,7 @@ COPY requirements.txt .
 # Point to the PyTorch CPU index to avoid downloading 2.5GB of useless CUDA drivers
 RUN --mount=type=cache,target=/home/appuser/.cache/uv \
     uv pip install --system \
+    --link-mode=copy \
     --index-strategy unsafe-best-match \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
