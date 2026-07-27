@@ -9,5 +9,8 @@ services:
     env_file:
       - .env
     volumes:
-      - model_cache:/app/.cache
+      - model_cache:/home/appuser/.cache
     restart: unless-stopped
+
+volumes:
+  model_cache:
