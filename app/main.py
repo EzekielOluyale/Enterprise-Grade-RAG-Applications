@@ -14,7 +14,8 @@ logfire.configure(
 )
 
 # Now safe to import app modules - logfire is already active
-from fastapi import FastAPI, Response, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
@@ -31,6 +32,26 @@ from app.config import settings
 
 # Global variable to hold the compiled agent
 rag_agent = None
+
+_security = HTTPBearer(auto_error=False)
+
+def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(_security)):
+    """
+    Require a valid bearer token when RAG_API_KEY is configured.
+    In development, omit RAG_API_KEY to disable authentication.
+    """
+    if not settings.API_KEY:
+        # Development mode: no API key required.
+        return None
+
+    if not credentials or credentials.credentials != settings.API_KEY:
+        logfire.warning("🔒 Unauthorized /query request: invalid or missing API key.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return credentials.credentials
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -137,7 +158,7 @@ async def health_check(request: Request):
     }
 
 @app.get("/graph")
-def get_graph_image():
+def get_graph_image(api_key: str = Depends(verify_api_key)):
     """
     Returns the Mermaid image of the agent's workflow.
     """
@@ -148,7 +169,7 @@ def get_graph_image():
         return {"error": f"Could not generate graph image: {e}"}
     
 @app.post("/query", response_model=QueryResponse)
-async def query(request: QueryRequest):
+async def query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
     """
     Executes the LangGraph RAG flow with memory using a POST request.
     """
@@ -202,7 +223,7 @@ async def query(request: QueryRequest):
         }
 
 @app.post("/stream")
-async def query(request: QueryRequest):
+async def query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
     """
     Executes the LangGraph RAG flow and streams the output via SSE.
     """
