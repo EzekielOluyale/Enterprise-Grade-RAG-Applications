@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: enterprise_rag
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - model_cache:/app/.cache
+    restart: unless-stopped
