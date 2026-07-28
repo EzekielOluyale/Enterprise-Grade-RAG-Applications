@@ -19,7 +19,7 @@ class Settings:
     QDRANT_COLLECTION = "enterprise_rag"
 
     # --- DATABASE (SUPABASE) ---
-    SUPABASE_URI = os.getenv("SUPABASE_URL")
+    SUPABASE_URI = os.getenv("DATABASE_URL")
 
     # --- REASONING ENGINE (GROQ) ---
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -33,6 +33,8 @@ class Settings:
     GROQ_SLUG =  "groq"     
     GEMINI_SLUG = "gemini"  
     VERTEXAI_SLUG = "vertex-ai"
+
+    RAG_API_KEY = os.getenv("RAG_API_KEY")
 
     # --- OBSERVABILITY ---
     LANGSMITH_TRACING = os.getenv("LANGSMITH_TRACING", "true")
