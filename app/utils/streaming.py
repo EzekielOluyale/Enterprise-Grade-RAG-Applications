@@ -8,22 +8,23 @@ STATUS_MESSAGES = {
     "responder": "Generating answer...",
 }
 
+
 def format_sse(event_type: str, content: any = None, event_id: str = None) -> str:
     """
     Safely formats data for Server-Sent Events (SSE).
     """
-    payload = json.dumps({
-        "type": event_type,
-        "content": content,
-    })
+    payload = json.dumps(
+        {
+            "type": event_type,
+            "content": content,
+        }
+    )
 
     if event_id is None:
         return f"data: {payload}\n\n"
 
-    return (
-        f"id: {event_id}\n"
-        f"data: {payload}\n\n"
-    )
+    return f"id: {event_id}\ndata: {payload}\n\n"
+
 
 async def stream_agent(agent_instance, initial_state: dict, config: dict, thread_id: str):
     """

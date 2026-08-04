@@ -30,6 +30,7 @@ qdrant_client = QdrantClient(
     api_key=settings.QDRANT_API_KEY,
 )
 
+
 def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
     """Save parsed chunk metadata as JSON in processed_data/<source_type>/."""
     folder = os.path.join(PROCESSED_DATA_DIR, source_type)
@@ -38,6 +39,7 @@ def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
     with open(dest, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return dest
+
 
 def process_file(file_path: str, filename: str, source_type: str):
     """Parse → chunk → save locally → embed → index in Qdrant."""
@@ -53,6 +55,7 @@ def process_file(file_path: str, filename: str, source_type: str):
                 full_text = parse_text(file_path)
             elif ext in ("docx", "pptx"):
                 from app.ingestion.loaders.office import parse_office
+
                 full_text = parse_office(file_path)
             else:
                 logfire.warning(f"Skipping unsupported file type: {filename}")
@@ -68,10 +71,7 @@ def process_file(file_path: str, filename: str, source_type: str):
                 return
 
             # Extract into standard Python dicts for JSON serialization
-            serialized_chunks = [
-                {"page_content": doc.page_content, "metadata": doc.metadata}
-                for doc in documents
-            ]
+            serialized_chunks = [{"page_content": doc.page_content, "metadata": doc.metadata} for doc in documents]
 
             # 3. Save processed metadata locally
             processed_data = {
@@ -110,6 +110,7 @@ def process_file(file_path: str, filename: str, source_type: str):
         except Exception as e:
             logfire.error(f"Failed to process {filename}: {e}")
 
+
 def process_directory(dir_path: str, source_type: str):
     """Process every file in a directory."""
     with logfire.span("Scanning Directory", path=dir_path, source=source_type):
@@ -118,13 +119,13 @@ def process_directory(dir_path: str, source_type: str):
         for filename in files:
             process_file(os.path.join(dir_path, filename), filename, source_type)
 
+
 def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wipe: bool = False):
     """
     Scan base_dir, map sub-folders to source types, and ingest all documents.
     Pass --wipe to drop and recreate the Qdrant collection before ingestion.
     """
     with logfire.span("Universal Ingestion Started", base_directory=base_dir):
-
         # Wipe collection if requested
         if wipe:
             with logfire.span("Wiping Collection"):
@@ -142,37 +143,24 @@ def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wip
                     distance=models.Distance.COSINE,
                 ),
             )
-            logfire.info(
-                f"Created collection '{settings.QDRANT_COLLECTION}' "
-                f"({dim}-dim, Cosine)."
-            )
+            logfire.info(f"Created collection '{settings.QDRANT_COLLECTION}' ({dim}-dim, Cosine).")
 
         # Route to sub-folders or treat the whole dir as one source
-        subdirs = [
-            d for d in os.listdir(base_dir)
-            if os.path.isdir(os.path.join(base_dir, d))
-        ]
+        subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
 
         if not subdirs:
             if explicit_source_type:
                 source_type = explicit_source_type
             else:
                 base_name = os.path.basename(os.path.normpath(base_dir)).lower()
-                source_type = (
-                    "true" if "true" in base_name
-                    else "noisy" if "noisy" in base_name
-                    else "general"
-                )
+                source_type = "true" if "true" in base_name else "noisy" if "noisy" in base_name else "general"
             logfire.info(f"No sub-folders found — processing '{base_dir}' as '{source_type}'.")
             process_directory(base_dir, source_type)
         else:
             for subdir in subdirs:
-                source_type = (
-                    "true" if "true" in subdir.lower()
-                    else "noisy" if "noisy" in subdir.lower()
-                    else subdir
-                )
+                source_type = "true" if "true" in subdir.lower() else "noisy" if "noisy" in subdir.lower() else subdir
                 process_directory(os.path.join(base_dir, subdir), source_type)
+
 
 if __name__ == "__main__":
     # Usage:

@@ -15,8 +15,9 @@ import requests
 
 API_URL = "http://localhost:8000/query"
 RESPONSE_TRUNCATE = 300
-DELAY_BETWEEN_CALLS = 10   # seconds — stays within Groq RPM on the main key
-REQUEST_TIMEOUT = 120      # seconds — guardrails + LangGraph + Groq can take >60s
+DELAY_BETWEEN_CALLS = 10  # seconds — stays within Groq RPM on the main key
+REQUEST_TIMEOUT = 120  # seconds — guardrails + LangGraph + Groq can take >60s
+
 
 def detect_tool(thought_process: list) -> str:
     """
@@ -33,6 +34,7 @@ def detect_tool(thought_process: list) -> str:
     if "conversational" in joined or "memory" in joined:
         return "direct_answer"
     return "unknown"
+
 
 def run_pipeline(golden_dataset: dict, progress_callback=None) -> dict:
     """
@@ -100,9 +102,11 @@ def run_pipeline(golden_dataset: dict, progress_callback=None) -> dict:
 
     return dataset
 
+
 def save_results(dataset: dict, path: str) -> None:
     with open(path, "w") as f:
         json.dump(dataset, f, indent=2)
+
 
 def load_golden_dataset() -> dict:
     golden_path = os.path.join(os.path.dirname(__file__), "golden_dataset.json")

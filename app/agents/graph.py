@@ -13,6 +13,7 @@ workflow.add_node("planner", planner_node)
 workflow.add_node("retriever", retrieve_node)
 workflow.add_node("responder", generate_node)
 
+
 # 3. Define the Edges & Routing Logic
 def route_planner(state: AgentState):
     """
@@ -22,18 +23,12 @@ def route_planner(state: AgentState):
         return "responder"
     return "retriever"
 
+
 workflow.set_entry_point("planner")
 
 
 # Conditional Edge: Planner -> Router -> (Retriever OR Responder)
-workflow.add_conditional_edges(
-    "planner",
-    route_planner,
-    {
-        "retriever": "retriever",
-        "responder": "responder"
-    }
-)
+workflow.add_conditional_edges("planner", route_planner, {"retriever": "retriever", "responder": "responder"})
 
 workflow.add_edge("retriever", "responder")
 workflow.add_edge("responder", END)

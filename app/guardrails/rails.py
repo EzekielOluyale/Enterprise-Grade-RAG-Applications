@@ -7,6 +7,7 @@ from app.guardrails.colang_rules import COLANG_CONTENT, RAIL_INDICATORS, YAML_CO
 
 _rails: LLMRails | None = None
 
+
 def initialize_rails() -> None:
     """
     Build the NeMo LLMRails singleton at app startup.
@@ -15,19 +16,13 @@ def initialize_rails() -> None:
     """
     global _rails
 
-    guard_llm = ChatGroq(
-        api_key=settings.GROQ_API_KEY,
-        model="llama-3.1-8b-instant",
-        temperature=0
-    )
+    guard_llm = ChatGroq(api_key=settings.GROQ_API_KEY, model="llama-3.1-8b-instant", temperature=0)
 
-    config = RailsConfig.from_content(
-        colang_content=COLANG_CONTENT,
-        yaml_content=YAML_CONTENT
-    )
+    config = RailsConfig.from_content(colang_content=COLANG_CONTENT, yaml_content=YAML_CONTENT)
 
     _rails = LLMRails(config, llm=guard_llm)
     logfire.info("🛡️ NeMo Guardrails initialised (llama-3.1-8b-instant).")
+
 
 def guard(message: str) -> tuple[bool, str | None]:
     """

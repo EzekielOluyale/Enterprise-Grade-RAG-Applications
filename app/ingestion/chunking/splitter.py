@@ -5,7 +5,9 @@ from langchain_core.documents import Document
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 
 
-def chunk_text(text: str, source_name: str = "document.pdf", chunk_size: int = 500, chunk_overlap: int = 50) -> List[Document]:
+def chunk_text(
+    text: str, source_name: str = "document.pdf", chunk_size: int = 500, chunk_overlap: int = 50
+) -> List[Document]:
     """
     Uses RecursiveCharacterTextSplitter to ensure chunks are always
     under the limit, even if paragraphs are massive.
@@ -28,10 +30,7 @@ def chunk_text(text: str, source_name: str = "document.pdf", chunk_size: int = 5
 
         # Use Recursive Character Splitter as a safety net
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            length_function=len,
-            separators=["\n\n", "\n", " ", ""]
+            chunk_size=chunk_size, chunk_overlap=chunk_overlap, length_function=len, separators=["\n\n", "\n", " ", ""]
         )
 
         chunks = splitter.split_documents(header_splits)
@@ -47,6 +46,6 @@ def chunk_text(text: str, source_name: str = "document.pdf", chunk_size: int = 5
             final_chunks_count=len(chunks),
             source=source_name,
             chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap
+            chunk_overlap=chunk_overlap,
         )
         return chunks

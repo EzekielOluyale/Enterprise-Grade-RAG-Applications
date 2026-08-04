@@ -5,6 +5,7 @@ from docling.document_converter import DocumentConverter
 
 converter = DocumentConverter()
 
+
 def parse_pdf(file_path: str | Path) -> str:
     """
     Parse a PDF using Docling.
@@ -40,14 +41,10 @@ def parse_pdf(file_path: str | Path) -> str:
             if not markdown.strip():
                 logfire.warning("No content extracted from PDF.")
             else:
-                logfire.info(
-                    f"Successfully extracted {len(markdown):,} characters."
-                )
+                logfire.info(f"Successfully extracted {len(markdown):,} characters.")
 
             return markdown
 
         except Exception as e:
-            logfire.exception(
-                f"Failed to parse PDF '{file_path.name}': {e}"
-            )
+            logfire.exception(f"Failed to parse PDF '{file_path.name}': {e}")
             raise

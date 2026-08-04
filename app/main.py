@@ -37,6 +37,7 @@ rag_agent = None
 
 _security = HTTPBearer(auto_error=False)
 
+
 def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(_security)):
     """
     Require a valid bearer token when RAG_API_KEY is configured.
@@ -54,6 +55,7 @@ def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(_security
             headers={"WWW-Authenticate": "Bearer"},
         )
     return credentials.credentials
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -74,10 +76,9 @@ async def lifespan(app: FastAPI):
         kwargs={
             "autocommit": True,
             "prepare_threshold": None,
-            "row_factory": dict_row  # <--- Essential for LangGraph
-        }
+            "row_factory": dict_row,  # <--- Essential for LangGraph
+        },
     ) as pool:
-
         app.state.pool = pool
 
         checkpointer = AsyncPostgresSaver(pool)
@@ -92,6 +93,7 @@ async def lifespan(app: FastAPI):
         yield
 
     # The pool automatically closes when the server shuts down.
+
 
 # Initialize FastAPI
 app = FastAPI(
@@ -109,9 +111,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class QueryRequest(BaseModel):
     q: str = Field(..., description="The message sent by the user.")
     thread_id: str = Field(..., description="Unique identifier tracking this specific conversation session.")
+
 
 class QueryResponse(BaseModel):
     question: str = Field(..., description="The original query sent by the user.")
@@ -120,9 +124,11 @@ class QueryResponse(BaseModel):
     status: str = Field(..., description="The final execution state of the graph.")
     sources: List[dict] = Field(default=[], description="List of source documents used to ground the answer.")
 
+
 @app.get("/")
 def home():
     return {"message": "Enterprise LangGraph RAG API is live."}
+
 
 @app.get("/health", status_code=200)
 async def health_check(request: Request):
@@ -149,15 +155,12 @@ async def health_check(request: Request):
         return Response(
             content=f"unhealthy (agent_ready={agent_ready}, db_ready={db_ready})",
             media_type="text/plain",
-            status_code=503
+            status_code=503,
         )
 
     # 4. If all systems are nominal
-    return {
-        "status": "healthy",
-        "database": "connected",
-        "agent": "compiled"
-    }
+    return {"status": "healthy", "database": "connected", "agent": "compiled"}
+
 
 @app.get("/graph")
 def get_graph_image(api_key: str = Depends(verify_api_key)):
@@ -169,6 +172,7 @@ def get_graph_image(api_key: str = Depends(verify_api_key)):
         return Response(content=png_bytes, media_type="image/png")
     except Exception as e:
         return {"error": f"Could not generate graph image: {e}"}
+
 
 @app.post("/query", response_model=QueryResponse)
 async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
@@ -184,7 +188,7 @@ async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key
         "documents": [],
         "plan": ["Start"],
         "status": "Initializing Graph...",
-        "final_answer": ""
+        "final_answer": "",
     }
 
     # Configuration for Memory (Thread ID)
@@ -200,7 +204,7 @@ async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key
                 "answer": rail_response,
                 "thought_process": ["Intent: Guardrails Fired", "Retrieval: Skipped"],
                 "status": "Blocked by guardrails.",
-                "sources": []
+                "sources": [],
             }
 
         # Gate 2: LangGraph RAG pipeline
@@ -212,7 +216,7 @@ async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key
             "answer": final_output.get("final_answer"),
             "thought_process": final_output.get("plan"),
             "status": final_output.get("status"),
-            "sources": final_output.get("documents", [])
+            "sources": final_output.get("documents", []),
         }
     except Exception as e:
         logfire.error(f"❌ Backend Execution Failed: {e}")
@@ -221,8 +225,9 @@ async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key
             "answer": "I apologize, but I encountered an internal error while processing your request. Please try again later.",
             "thought_process": ["Error encountered during execution."],
             "status": "error",
-            "sources": []
+            "sources": [],
         }
+
 
 @app.post("/stream")
 async def stream_query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
@@ -238,7 +243,7 @@ async def stream_query(request: QueryRequest, api_key: str = Depends(verify_api_
         "documents": [],
         "plan": ["Start"],
         "status": "Initializing Graph...",
-        "final_answer": ""
+        "final_answer": "",
     }
 
     config = {"configurable": {"thread_id": thread_id}}
@@ -256,16 +261,12 @@ async def stream_query(request: QueryRequest, api_key: str = Depends(verify_api_
         return StreamingResponse(
             blocked_stream(),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     # Gate 2: Pass into the standalone generator
     return StreamingResponse(
         stream_agent(rag_agent, initial_state, config, thread_id),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )

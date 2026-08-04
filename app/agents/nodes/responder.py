@@ -60,8 +60,7 @@ def generate_node(state: AgentState):
     with logfire.span("✍️ LLM Synthesis"):
         try:
             response = portkey_client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1
+                messages=[{"role": "user", "content": prompt}], temperature=0.1
             )
             content = response.choices[0].message.content
             cache_status = extract_cache_status(response)
@@ -80,7 +79,7 @@ def generate_node(state: AgentState):
                 "final_answer": content,
                 "status": status,
                 "plan": plan_update,
-                "messages": [{"role": "assistant", "content": content}]
+                "messages": [{"role": "assistant", "content": content}],
             }
 
         except Exception as e:

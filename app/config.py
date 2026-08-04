@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+
 class Settings:
     # --- GEMINI EMBEDDINGS ---
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -31,7 +32,7 @@ class Settings:
     PORTKEY_CONFIG_ID = os.getenv("PORTKEY_CONFIG_ID")
     PORTKEY_CHAT_CONFIG_ID = os.getenv("PORTKEY_CHAT_CONFIG_ID")
 
-    GROQ_SLUG =  "groq"
+    GROQ_SLUG = "groq"
     GEMINI_SLUG = "gemini"
     VERTEXAI_SLUG = "vertex-ai"
 
@@ -42,6 +43,7 @@ class Settings:
     LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
     LANGSMITH_PROJECT = os.getenv("LANGSMITH_PROJECT", "rag_scale_test")
     LANGSMITH_ENDPOINT = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+
 
 # Apply LangChain environment variables for automatic tracing
 os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGSMITH_TRACING", "true")

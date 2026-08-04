@@ -12,9 +12,11 @@ import requests
 
 API_URL = "http://localhost:8000/query"
 
+
 def _is_blocked(response_json: dict) -> bool:
     tp = response_json.get("thought_process") or []
     return any("guardrails fired" in step.lower() for step in tp)
+
 
 def run_guardrails_eval(guardrails_samples: list, progress_callback=None) -> list:
     """
@@ -75,6 +77,7 @@ def run_guardrails_eval(guardrails_samples: list, progress_callback=None) -> lis
 
     return samples
 
+
 def compute_guardrails_metrics(results: list) -> dict:
     tp = sum(1 for r in results if r["result"] == "TP")
     tn = sum(1 for r in results if r["result"] == "TN")
@@ -82,8 +85,8 @@ def compute_guardrails_metrics(results: list) -> dict:
     fn = sum(1 for r in results if r["result"] == "FN")
 
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    accuracy  = (tp + tn) / len(results) if results else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    accuracy = (tp + tn) / len(results) if results else 0.0
 
     return {
         "tp": tp,

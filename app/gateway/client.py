@@ -10,10 +10,8 @@ from app.config import settings
 
 PORTKEY_CONFIG_ID = settings.PORTKEY_CONFIG_ID
 
-portkey_client = Portkey(
-    api_key=settings.PORTKEY_API_KEY,
-    config=settings.PORTKEY_CONFIG_ID
-)
+portkey_client = Portkey(api_key=settings.PORTKEY_API_KEY, config=settings.PORTKEY_CONFIG_ID)
+
 
 def get_langchain_llm(feature: str = "rag") -> ChatOpenAI:
     """
@@ -34,13 +32,10 @@ def get_langchain_llm(feature: str = "rag") -> ChatOpenAI:
         default_headers=createHeaders(
             api_key=settings.PORTKEY_API_KEY,
             config=PORTKEY_CONFIG_ID,
-            metadata={
-                "feature": feature,
-                "_user": "rag-system",
-                "environment": "production"
-            }
-        )
+            metadata={"feature": feature, "_user": "rag-system", "environment": "production"},
+        ),
     )
+
 
 def extract_cache_status(response) -> str:
     """

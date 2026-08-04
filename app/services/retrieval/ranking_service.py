@@ -6,6 +6,7 @@ from flashrank import Ranker, RerankRequest
 # Lazy initialization - Ranker is loaded on first use to ensure logfire.configure() has run
 _ranker = None
 
+
 def _get_ranker() -> Ranker:
     """
     Initializes the FlashRank engine lazily.
@@ -20,6 +21,7 @@ def _get_ranker() -> Ranker:
         except Exception:
             _ranker = Ranker()
     return _ranker
+
 
 def rerank_documents(query: str, documents: list[str], top_n: int = 5) -> list[str]:
     """
@@ -40,10 +42,7 @@ def rerank_documents(query: str, documents: list[str], top_n: int = 5) -> list[s
         ranker = _get_ranker()
 
         # FlashRank expects a list of dictionaries with 'id' and 'text'
-        passages = [
-            {"id": i, "text": doc}
-            for i, doc in enumerate(documents)
-        ]
+        passages = [{"id": i, "text": doc} for i, doc in enumerate(documents)]
 
         request = RerankRequest(query=query, passages=passages)
         results = ranker.rerank(request)
@@ -51,10 +50,10 @@ def rerank_documents(query: str, documents: list[str], top_n: int = 5) -> list[s
         # Results are returned sorted by highest semantic score first
         reranked_docs = []
         for res in results[:top_n]:
-            reranked_docs.append(res['text'])
+            reranked_docs.append(res["text"])
 
         duration = time.time() - start_time
-        top_score = results[0]['score'] if results else 'N/A'
+        top_score = results[0]["score"] if results else "N/A"
         logfire.info(f"✅ [Reranker] Done in {duration:.2f}s. Top semantic score: {top_score}")
 
         return reranked_docs
