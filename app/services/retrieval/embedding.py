@@ -1,6 +1,8 @@
 import time
+
 import logfire
 from portkey_ai import Portkey
+
 from app.config import settings
 
 BATCH_SIZE = 50
@@ -84,10 +86,10 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         return []
 
     all_embeddings: list[list[float]] = []
-    
+
     for i in range(0, len(texts), BATCH_SIZE):
         batch = texts[i : i + BATCH_SIZE]
-        
+
         with logfire.span("Embed batch", start=i, size=len(batch)):
             try:
                 batch_embeddings = _embed_batch(batch)
@@ -97,5 +99,5 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
                 logfire.error(f"❌ Batch ingestion pipeline failed at index {i}: {e}")
                 raise
 
-    logfire.info(f"Total input texts: {len(texts)} | Total embeddings generated: {len(all_embeddings)}")   
+    logfire.info(f"Total input texts: {len(texts)} | Total embeddings generated: {len(all_embeddings)}")
     return all_embeddings

@@ -1,4 +1,5 @@
 import json
+
 import logfire
 
 STATUS_MESSAGES = {
@@ -26,17 +27,17 @@ def format_sse(event_type: str, content: any = None, event_id: str = None) -> st
 
 async def stream_agent(agent_instance, initial_state: dict, config: dict, thread_id: str):
     """
-    Standalone generator function that executes the LangGraph workflow 
+    Standalone generator function that executes the LangGraph workflow
     and yields SSE formatted chunks.
     """
     logfire.info(f"🌊 Stream started | thread={thread_id}")
-    
+
     try:
         # Initial connection status
         yield format_sse("status", "Agent started.")
 
-        # Note on Heartbeats: SSE natively supports keeping connections alive 
-        # by sending a comment string like `: keep-alive\n\n`. The proxy headers 
+        # Note on Heartbeats: SSE natively supports keeping connections alive
+        # by sending a comment string like `: keep-alive\n\n`. The proxy headers
         # below usually handle this, but you can inject a ping here if needed.
 
         async for event in agent_instance.astream_events(initial_state, config=config, version="v2"):
@@ -54,11 +55,11 @@ async def stream_agent(agent_instance, initial_state: dict, config: dict, thread
                 chunk = event["data"]["chunk"]
                 if hasattr(chunk, "content"):
                     content = chunk.content
-                    
+
                     if isinstance(content, str):
                         if content:
                             yield format_sse("token", content)
-                            
+
                     elif isinstance(content, list):
                         for item in content:
                             if isinstance(item, dict) and "text" in item:
@@ -67,16 +68,16 @@ async def stream_agent(agent_instance, initial_state: dict, config: dict, thread
                                 text = getattr(item, "text", None)
                                 if text:
                                     yield format_sse("token", text)
-        
+
         # Signal successful completion
         yield format_sse("end")
         logfire.info(f"✅ Stream completed successfully | thread={thread_id}")
 
-    except Exception as e:
+    except Exception:
         # logfire.exception captures the full stack trace, not just the error string
         logfire.exception("Stream execution failed.")
         yield format_sse("error", "An internal error occurred during processing.")
         yield format_sse("end")
-        
+
     finally:
         logfire.info(f"🔌 Stream connection closed | thread={thread_id}")

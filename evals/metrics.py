@@ -6,21 +6,20 @@ and 60s cooldowns between experiments — calibrated for Groq's 6,000 TPM on_dem
 Contexts are truncated to 300 chars (2 chunks max) so no single request exceeds the limit.
 """
 
-import os
 import asyncio
+import os
+
 import logfire
 import pandas as pd
 from openai import AsyncOpenAI
-
-from ragas.llms import llm_factory
 from ragas.embeddings import HuggingFaceEmbeddings
-from ragas import SingleTurnSample
+from ragas.llms import llm_factory
 from ragas.metrics.collections import (
-    Faithfulness,
+    AnswerCorrectness,
     AnswerRelevancy,
     ContextPrecision,
     ContextRecall,
-    AnswerCorrectness,
+    Faithfulness,
 )
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
@@ -49,8 +48,8 @@ async def _cooldown(seconds: int, label: str, status_cb=None):
     for _ in range(seconds // 10):
         await asyncio.sleep(10)
     if status_cb:
-        status_cb(f"✅ Ready — starting next experiment.")
-        
+        status_cb("✅ Ready — starting next experiment.")
+
 def _prep_samples(golden_dataset: dict) -> list:
     """
     Returns only samples with actual_response populated.
@@ -181,7 +180,7 @@ async def run_all_metrics(golden_dataset: dict, status_cb=None) -> dict:
 
         # ── Exp 5: Answer Correctness (split into batches) ────────────────────
         if status_cb:
-            status_cb(f"🧪 Exp 5/6 — Answer Correctness batch 1/2...")
+            status_cb("🧪 Exp 5/6 — Answer Correctness batch 1/2...")
         with logfire.span("🧪 Exp 5 — Answer Correctness"):
             inputs = [
                 {

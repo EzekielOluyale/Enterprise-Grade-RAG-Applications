@@ -2,10 +2,11 @@
 # CRITICAL: logfire MUST be configured before ALL other imports
 # so that spans from all modules are captured from the start.
 # ============================================================
-import logfire
 import os
-from dotenv import load_dotenv
 from contextlib import asynccontextmanager
+
+import logfire
+from dotenv import load_dotenv
 
 load_dotenv()
 logfire.configure(
@@ -14,21 +15,22 @@ logfire.configure(
 )
 
 # Now safe to import app modules - logfire is already active
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
 from typing import List
-from psycopg_pool import AsyncConnectionPool
-from psycopg.rows import dict_row
+
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
+from pydantic import BaseModel, Field
 
 from app.agents.graph import workflow
-from app.guardrails.rails import initialize_rails, guard
-from app.utils.streaming import stream_agent, format_sse
 from app.config import settings
+from app.guardrails.rails import guard, initialize_rails
+from app.utils.streaming import format_sse, stream_agent
 
 # Global variable to hold the compiled agent
 rag_agent = None
@@ -59,36 +61,36 @@ async def lifespan(app: FastAPI):
     Handles startup (DB connections, guardrails) and shutdown.
     """
     global rag_agent
-    
+
     # Initialize guardrails
     initialize_rails()
-    
+
     # Initialize Async Database Pool for LangGraph Memory
     # max_size=20 allows 20 concurrent customer queries to run simultaneously
     SUPABASE_URI = settings.SUPABASE_URI
     async with AsyncConnectionPool(
-        conninfo=SUPABASE_URI, 
+        conninfo=SUPABASE_URI,
         max_size=20,
         kwargs={
-            "autocommit": True, 
+            "autocommit": True,
             "prepare_threshold": None,
             "row_factory": dict_row  # <--- Essential for LangGraph
         }
     ) as pool:
-        
+
         app.state.pool = pool
-        
+
         checkpointer = AsyncPostgresSaver(pool)
-        
+
         # Automatically create Supabase tables if they don't exist
         await checkpointer.setup()
-        
+
         # Compile the graph with the async checkpointer
         rag_agent = workflow.compile(checkpointer=checkpointer)
-        
+
         # The app serves traffic while inside this block
         yield
-        
+
     # The pool automatically closes when the server shuts down.
 
 # Initialize FastAPI
@@ -117,7 +119,7 @@ class QueryResponse(BaseModel):
     thought_process: List[str] = Field(default=[], description="The step-by-step execution plan taken by the agent.")
     status: str = Field(..., description="The final execution state of the graph.")
     sources: List[dict] = Field(default=[], description="List of source documents used to ground the answer.")
-    
+
 @app.get("/")
 def home():
     return {"message": "Enterprise LangGraph RAG API is live."}
@@ -145,8 +147,8 @@ async def health_check(request: Request):
     # 3. If either component fails, report 503 Service Unavailable
     if not agent_ready or not db_ready:
         return Response(
-            content=f"unhealthy (agent_ready={agent_ready}, db_ready={db_ready})", 
-            media_type="text/plain", 
+            content=f"unhealthy (agent_ready={agent_ready}, db_ready={db_ready})",
+            media_type="text/plain",
             status_code=503
         )
 
@@ -167,7 +169,7 @@ def get_graph_image(api_key: str = Depends(verify_api_key)):
         return Response(content=png_bytes, media_type="image/png")
     except Exception as e:
         return {"error": f"Could not generate graph image: {e}"}
-    
+
 @app.post("/query", response_model=QueryResponse)
 async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
     """
@@ -184,10 +186,10 @@ async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key
         "status": "Initializing Graph...",
         "final_answer": ""
     }
-    
+
     # Configuration for Memory (Thread ID)
     config = {"configurable": {"thread_id": thread_id}}
-    
+
     try:
         # Gate 1: NeMo Guardrails — blocks off-topic, jailbreaks, and handles dialog
         rail_fired, rail_response = await run_in_threadpool(guard, q)
@@ -204,7 +206,7 @@ async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key
         # Gate 2: LangGraph RAG pipeline
         # Run the graph asynchronously to preserve Logfire context variables
         final_output = await rag_agent.ainvoke(initial_state, config=config)
-        
+
         return {
             "question": q,
             "answer": final_output.get("final_answer"),
@@ -238,19 +240,19 @@ async def stream_query(request: QueryRequest, api_key: str = Depends(verify_api_
         "status": "Initializing Graph...",
         "final_answer": ""
     }
-    
+
     config = {"configurable": {"thread_id": thread_id}}
-    
+
     # Gate 1: NeMo Guardrails
     rail_fired, rail_response = await run_in_threadpool(guard, q)
     if rail_fired:
         logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
-        
+
         async def blocked_stream():
             yield format_sse("status", "Blocked by guardrails.")
             yield format_sse("token", rail_response)
             yield format_sse("end")
-            
+
         return StreamingResponse(
             blocked_stream(),
             media_type="text/event-stream",

@@ -1,6 +1,5 @@
-import logfire
-from portkey_ai import Portkey, createHeaders, PORTKEY_GATEWAY_URL
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
+from portkey_ai import PORTKEY_GATEWAY_URL, Portkey, createHeaders
 
 from app.config import settings
 

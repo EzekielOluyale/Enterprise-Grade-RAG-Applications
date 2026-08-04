@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -30,8 +31,8 @@ class Settings:
     PORTKEY_CONFIG_ID = os.getenv("PORTKEY_CONFIG_ID")
     PORTKEY_CHAT_CONFIG_ID = os.getenv("PORTKEY_CHAT_CONFIG_ID")
 
-    GROQ_SLUG =  "groq"     
-    GEMINI_SLUG = "gemini"  
+    GROQ_SLUG =  "groq"
+    GEMINI_SLUG = "gemini"
     VERTEXAI_SLUG = "vertex-ai"
 
     RAG_API_KEY = os.getenv("RAG_API_KEY")
