@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from nemoguardrails.exceptions import LLMCallException
+from prometheus_fastapi_instrumentator import Instrumentator
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, Field
@@ -32,6 +33,8 @@ from app.agents.graph import workflow
 from app.config import settings
 from app.guardrails.rails import guard, initialize_rails
 from app.utils.streaming import format_sse, stream_agent
+from app.health import router as health_router
+from app.services.health.connection_checker import check_all_connections, log_connection_summary
 
 # Global variable to hold the compiled agent
 rag_agent = None
@@ -64,6 +67,11 @@ async def lifespan(app: FastAPI):
     Handles startup (DB connections, guardrails) and shutdown.
     """
     global rag_agent
+
+    # Run external connection checks
+    logfire.info("Running startup external connection checks...")
+    results = await run_in_threadpool(check_all_connections)
+    log_connection_summary(results)
 
     # Initialize guardrails
     initialize_rails()
@@ -104,6 +112,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(health_router)
+
+# Expose Prometheus metrics at /metrics with default request instrumentation.
+Instrumentator().instrument(app).expose(
+    app, 
+    endpoint="/metrics", 
+    include_in_schema=False
+)
+
+logfire.instrument_fastapi(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, replace ["*"] with your actual frontend URLs
@@ -141,44 +160,16 @@ class QueryResponse(BaseModel):
 def home():
     return {"message": "Enterprise LangGraph RAG API is live."}
 
-
-@app.get("/health", status_code=200)
-async def health_check(request: Request):
-    """
-    Checks active database connectivity AND verifies the AI agent is loaded.
-    """
-    # 1. Check if the LangGraph agent is compiled and ready in memory
-    global rag_agent
-    agent_ready = rag_agent is not None
-    if not agent_ready:
-        logfire.error("❌ Health check failed: LangGraph agent is not compiled or ready.")
-
-    # 2. Check if the database connection pool is actively responding
-    db_ready = False
-    try:
-        async with request.app.state.pool.connection() as conn:
-            await conn.execute("SELECT 1")
-        db_ready = True
-    except Exception as e:
-        logfire.error(f"Database health check failed: {e}")
-
-    # 3. If either component fails, report 503 Service Unavailable
-    if not agent_ready or not db_ready:
-        return Response(
-            content=f"unhealthy (agent_ready={agent_ready}, db_ready={db_ready})",
-            media_type="text/plain",
-            status_code=503,
-        )
-
-    # 4. If all systems are nominal
-    return {"status": "healthy", "database": "connected", "agent": "compiled"}
-
-
 @app.get("/graph")
 def get_graph_image(api_key: str = Depends(verify_api_key)):
     """
     Returns the Mermaid image of the agent's workflow.
     """
+    if rag_agent is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Agent graph is still initializing. Please try again in a few seconds."
+        )
     try:
         png_bytes = rag_agent.get_graph().draw_mermaid_png()
         return Response(content=png_bytes, media_type="image/png")
