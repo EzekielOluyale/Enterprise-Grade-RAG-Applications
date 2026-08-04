@@ -42,7 +42,7 @@ def _check_supabase_postgres() -> ConnectionResult:
     """Verify Supabase PostgreSQL is reachable and accepts queries."""
     if not settings.SUPABASE_URI:
         return ConnectionResult("postgres", False, "SUPABASE_URI not set")
-    
+
     pool = None
     conn = None
     try:

@@ -32,9 +32,9 @@ from pydantic import BaseModel, Field
 from app.agents.graph import workflow
 from app.config import settings
 from app.guardrails.rails import guard, initialize_rails
-from app.utils.streaming import format_sse, stream_agent
 from app.health import router as health_router
 from app.services.health.connection_checker import check_all_connections, log_connection_summary
+from app.utils.streaming import format_sse, stream_agent
 
 # Global variable to hold the compiled agent
 rag_agent = None
@@ -116,8 +116,8 @@ app.include_router(health_router)
 
 # Expose Prometheus metrics at /metrics with default request instrumentation.
 Instrumentator().instrument(app).expose(
-    app, 
-    endpoint="/metrics", 
+    app,
+    endpoint="/metrics",
     include_in_schema=False
 )
 
