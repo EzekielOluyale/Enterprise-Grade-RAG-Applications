@@ -30,6 +30,69 @@ ENV_KEY_MAP = {
     "QDRANT_URL": "QDRANT_CLUSTER_ENDPOINT",
 }
 
+def create_or_update_secret(secret_name: str, description: str, value: str) -> str:
+    """Creates a secret if it doesn't exist, or updates its value if it already exists."""
+    create_cmd = [
+        "aws",
+        "secretsmanager",
+        "create-secret",
+        "--name",
+        secret_name,
+        "--description",
+        description,
+        "--secret-string",
+        value,
+        "--query",
+        "ARN",
+        "--output",
+        "text",
+    ]
+
+    result = subprocess.run(create_cmd, capture_output=True, text=True)
+
+    # 1. Success: New secret was created
+    if result.returncode == 0:
+        arn = result.stdout.strip()
+        print(f"✅ Created new secret: {secret_name}")
+        return arn
+
+    # 2. Secret already exists: Fallback to update value + fetch existing ARN
+    update_cmd = [
+        "aws",
+        "secretsmanager",
+        "put-secret-value",
+        "--secret-id",
+        secret_name,
+        "--secret-string",
+        value,
+    ]
+    update_res = subprocess.run(update_cmd, capture_output=True, text=True)
+
+    if update_res.returncode != 0:
+        print(f"❌ Failed to update secret {secret_name}:\n{update_res.stderr}")
+        sys.exit(1)
+
+    arn_cmd = [
+        "aws",
+        "secretsmanager",
+        "describe-secret",
+        "--secret-id",
+        secret_name,
+        "--query",
+        "ARN",
+        "--output",
+        "text",
+    ]
+    arn_res = subprocess.run(arn_cmd, capture_output=True, text=True)
+
+    if arn_res.returncode != 0:
+        print(f"❌ Failed to retrieve ARN for {secret_name}:\n{arn_res.stderr}")
+        sys.exit(1)
+
+    arn = arn_res.stdout.strip()
+    print(f"🔄 Updated existing secret: {secret_name}")
+    return arn
+
 def main():
     project = os.environ.get("PROJECT", "rag")
     env = dotenv_values(ENV_PATH)
@@ -67,27 +130,12 @@ def main():
         secret_name = f"{project}/{key.lower().replace('_', '-')}"
         value = values[key]
 
-        result = subprocess.run(
-            [
-                "aws",
-                "secretsmanager",
-                "create-secret",
-                "--name",
-                secret_name,
-                "--description",
-                f"{key} for RAG deployment",
-                "--secret-string",
-                value,
-                "--query",
-                "ARN",
-                "--output",
-                "text",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
+        arn = create_or_update_secret(
+            secret_name=secret_name,
+            description=f"{key} for RAG deployment",
+            value=value,
         )
-        arn = result.stdout.strip()
+        
         arns[key] = arn
         print(f"{key}_ARN={arn}")
 
