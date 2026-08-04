@@ -9,9 +9,9 @@ on:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY || 'enterprise-rag' }}
-  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER || 'rag-cluster' }}
-  ECS_SERVICE_API: ${{ secrets.ECS_SERVICE_API || 'rag-api' }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+  ECS_SERVICE_API: ${{ secrets.ECS_SERVICE_API }}
   BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
 jobs:
