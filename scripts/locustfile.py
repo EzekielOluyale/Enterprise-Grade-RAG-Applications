@@ -64,21 +64,24 @@ class RAGQueryUser(HttpUser):
             "thread_id": f"locust-{random.randint(1, 1000000)}",
         }
         with self.client.post(
-            "/query",
+            "/stream",
             json=payload,
             headers=headers,
             catch_response=True,
-            name="/query",
+            name="/stream",
             timeout=60,
+            stream=True,
         ) as response:
             if response.status_code == 200:
                 try:
-                    data = response.json()
-                    if data.get("status") == "error":
-                        response.failure(f"API error: {data.get('message')}")
-                    else:
-                        response.success()
+                    # Consume the stream chunk by chunk instead of using .json()
+                    for line in response.iter_lines():
+                        if line:
+                            # If you ever need to check for specific streaming errors 
+                            # inside the chunks, you can decode the line here.
+                            pass
+                    response.success()
                 except Exception as exc:
-                    response.failure(f"Invalid JSON: {exc}")
+                    response.failure(f"Stream reading failed: {exc}")
             else:
                 response.failure(f"HTTP {response.status_code}")
