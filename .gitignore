@@ -224,3 +224,8 @@ gcp-key.json
 processed_data
 
 data
+
+aws_deploy_env.sh
+aws_secret_arns.sh
+awscliv2.zip
+aws
