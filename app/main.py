@@ -169,7 +169,7 @@ def get_graph_image(api_key: str = Depends(verify_api_key)):
         return {"error": f"Could not generate graph image: {e}"}
     
 @app.post("/query", response_model=QueryResponse)
-async def query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
+async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
     """
     Executes the LangGraph RAG flow with memory using a POST request.
     """
@@ -223,7 +223,7 @@ async def query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
         }
 
 @app.post("/stream")
-async def query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
+async def stream_query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
     """
     Executes the LangGraph RAG flow and streams the output via SSE.
     """
