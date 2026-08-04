@@ -85,7 +85,10 @@ def compute_guardrails_metrics(results: list) -> dict:
     accuracy  = (tp + tn) / len(results) if results else 0.0
 
     return {
-        "tp": tp, "tn": tn, "fp": fp, "fn": fn,
+        "tp": tp, 
+        "tn": tn, 
+        "fp": fp, 
+        "fn": fn,
         "precision": round(precision, 3),
         "recall": round(recall, 3),
         "accuracy": round(accuracy, 3),
