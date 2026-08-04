@@ -112,13 +112,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.exception_handler(LLMCallException)
 async def llm_call_exception_handler(request: Request, exc: LLMCallException):
     logfire.warning(f"⚠️ LLM Rate Limit Hit: {exc}")
     return JSONResponse(
         status_code=429,
-        content={"message": "The AI is currently experiencing high traffic due to API limits. Please try again in a few seconds."},
+        content={
+            "message": "The AI is currently experiencing high traffic due to API limits. Please try again in a few seconds."
+        },
     )
+
 
 class QueryRequest(BaseModel):
     q: str = Field(..., description="The message sent by the user.")
