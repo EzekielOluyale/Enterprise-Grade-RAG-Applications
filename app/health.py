@@ -19,7 +19,7 @@ def health():
 def ready(request: Request):
     """
     Readiness probe — verifies that critical external dependencies are reachable.
-    Returns 200 only if Supabase Postgres, Qdrant, Portkey LLM gateway, 
+    Returns 200 only if Supabase Postgres, Qdrant, Portkey LLM gateway,
     Groq LLM, Logfire, and LangSmith are all healthy.
     """
     results = check_all_connections()
