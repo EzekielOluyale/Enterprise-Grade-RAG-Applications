@@ -20,9 +20,10 @@ from typing import List
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from nemoguardrails.exceptions import LLMCallException
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, Field
@@ -111,6 +112,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.exception_handler(LLMCallException)
+async def llm_call_exception_handler(request: Request, exc: LLMCallException):
+    logfire.warning(f"⚠️ LLM Rate Limit Hit: {exc}")
+    return JSONResponse(
+        status_code=429,
+        content={"message": "The AI is currently experiencing high traffic due to API limits. Please try again in a few seconds."},
+    )
 
 class QueryRequest(BaseModel):
     q: str = Field(..., description="The message sent by the user.")
