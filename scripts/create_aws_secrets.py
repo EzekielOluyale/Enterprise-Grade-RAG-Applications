@@ -23,6 +23,7 @@ SECRET_KEYS = [
     "DATABASE_URL",
     "RAG_API_KEY",
     "GCP_SERVICE_ACCOUNT_KEY",  # Reads the JSON content from your gcp-key file
+    "REDIS_URL",
 ]
 
 # Map environment variable names used by the app to .env keys when they differ.
