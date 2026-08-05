@@ -1,6 +1,7 @@
 import json
 
 import logfire
+from main import RAG_REQUESTS_TOTAL
 
 STATUS_MESSAGES = {
     "planner": "Planning execution...",
@@ -45,13 +46,13 @@ async def stream_agent(agent_instance, initial_state: dict, config: dict, thread
             kind = event["event"]
             name = event.get("name", "")
 
-            # 1. Dynamic Status Tracking via Dictionary
+            # Dynamic Status Tracking
             if kind == "on_chain_start":
                 message = STATUS_MESSAGES.get(name)
                 if message:
                     yield format_sse("status", message)
 
-            # 2. Token Extraction
+            # Token Extraction
             elif kind == "on_chat_model_stream":
                 chunk = event["data"]["chunk"]
                 if hasattr(chunk, "content"):
@@ -75,7 +76,7 @@ async def stream_agent(agent_instance, initial_state: dict, config: dict, thread
         logfire.info(f"✅ Stream completed successfully | thread={thread_id}")
 
     except Exception:
-        # logfire.exception captures the full stack trace, not just the error string
+        RAG_REQUESTS_TOTAL.labels(status="error").inc()
         logfire.exception("Stream execution failed.")
         yield format_sse("error", "An internal error occurred during processing.")
         yield format_sse("end")
