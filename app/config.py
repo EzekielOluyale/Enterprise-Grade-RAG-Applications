@@ -40,9 +40,9 @@ class Settings:
 
     # API safety
     RAG_API_KEY = os.getenv("RAG_API_KEY")
-    RATE_LIMIT_PER_MINUTE=20
+    RATE_LIMIT_PER_MINUTE = 20
 
-    # OBSERVABILITY 
+    # OBSERVABILITY
     LANGSMITH_TRACING = os.getenv("LANGSMITH_TRACING", "true")
     LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
     LANGSMITH_PROJECT = os.getenv("LANGSMITH_PROJECT", "rag_scale_test")
@@ -50,6 +50,7 @@ class Settings:
 
     # Pydantic Logfire Observability
     LOGFIRE_TOKEN = os.getenv("LOGFIRE_TOKEN")
+
 
 # Apply LangChain environment variables for automatic tracing
 os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGSMITH_TRACING", "true")
