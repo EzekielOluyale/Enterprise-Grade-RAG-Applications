@@ -51,5 +51,7 @@ jobs:
           VERTEXAI_EMBEDDING_MODEL: gemini-embedding-004
           GEMINI_API_KEY: dummy
           RAG_API_KEY: dummy
+          REDIS_URL: redis://dummy:6379/0
+          RATE_LIMIT_PER_MINUTE: "60"
         run: |
           pytest tests/
