@@ -3,6 +3,14 @@ import logfire
 from app.agents.state import AgentState
 from app.gateway.client import extract_cache_status, portkey_client
 
+SYSTEM_PERSONA = """You are an Enterprise IT Assistant specialising in:
+- Kubernetes (deployment, scaling, operators, networking)
+- Intel hardware (CPUs, FPGAs, NICs, SRIOV)
+- Enterprise networking (SDN, VLANs, BGP, routing)
+
+If the user asks what you can do, ONLY mention these technical capabilities.
+Do not offer general AI tasks like translation, summarizing history, or writing poems."""
+
 
 def generate_node(state: AgentState):
     """
@@ -22,7 +30,6 @@ def generate_node(state: AgentState):
     if query == "CONVERSATIONAL":
         logfire.info("Generating conversational response using memory.")
         prompt = f"""
-        You are a friendly and helpful Enterprise AI Assistant.
         Answer the user's latest message using the CONVERSATION HISTORY below.
 
         CONVERSATION HISTORY:
@@ -44,7 +51,6 @@ def generate_node(state: AgentState):
                 break
 
         prompt = f"""
-        You are a Senior Technical Architect.
         Answer the question using the TECHNICAL CONTEXT provided.
 
         TECHNICAL CONTEXT:
@@ -60,7 +66,8 @@ def generate_node(state: AgentState):
     with logfire.span("✍️ LLM Synthesis"):
         try:
             response = portkey_client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}], temperature=0.1
+                messages=[{"role": "system", "content": SYSTEM_PERSONA}, {"role": "user", "content": prompt}],
+                temperature=0.1,
             )
             content = response.choices[0].message.content
             cache_status = extract_cache_status(response)
