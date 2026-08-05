@@ -23,6 +23,7 @@ if settings.LOGFIRE_TOKEN:
 else:
     logfire.configure(send_to_logfire=False)
 
+
 class ConnectionResult:
     """Result of a single connectivity check."""
 
@@ -91,6 +92,7 @@ def _check_qdrant() -> ConnectionResult:
         logfire.warning(f"Qdrant health check failed: {e}")
         return ConnectionResult("qdrant", False, str(e))
 
+
 def _check_portkey_gateway() -> ConnectionResult:
     """Verify Portkey LLM gateway responds to a minimal completion."""
     try:
@@ -106,6 +108,7 @@ def _check_portkey_gateway() -> ConnectionResult:
     except Exception as e:
         logfire.warning(f"LLM gateway health check failed: {e}")
         return ConnectionResult("llm_gateway", False, str(e))
+
 
 def _check_groq_llm() -> ConnectionResult:
     """Verify Groq API key and model connectivity."""

@@ -115,11 +115,7 @@ app = FastAPI(
 app.include_router(health_router)
 
 # Expose Prometheus metrics at /metrics with default request instrumentation.
-Instrumentator().instrument(app).expose(
-    app,
-    endpoint="/metrics",
-    include_in_schema=False
-)
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 logfire.instrument_fastapi(app)
 
@@ -160,6 +156,7 @@ class QueryResponse(BaseModel):
 def home():
     return {"message": "Enterprise LangGraph RAG API is live."}
 
+
 @app.get("/graph")
 def get_graph_image(api_key: str = Depends(verify_api_key)):
     """
@@ -168,7 +165,7 @@ def get_graph_image(api_key: str = Depends(verify_api_key)):
     if rag_agent is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Agent graph is still initializing. Please try again in a few seconds."
+            detail="Agent graph is still initializing. Please try again in a few seconds.",
         )
     try:
         png_bytes = rag_agent.get_graph().draw_mermaid_png()
