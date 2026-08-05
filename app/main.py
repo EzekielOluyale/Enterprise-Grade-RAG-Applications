@@ -293,8 +293,21 @@ async def query(
     start = time.perf_counter()
     rag_agent = request.app.state.rag_agent
 
+    # SYSTEM PROMPT
+    system_persona = """You are an Enterprise IT Assistant specialising in:
+    - Kubernetes (deployment, scaling, operators, networking)
+    - Intel hardware (CPUs, FPGAs, NICs, SRIOV)
+    - Enterprise networking (SDN, VLANs, BGP, routing)
+
+    If the user asks what you can do, ONLY mention these technical capabilities.
+    Do not offer general AI tasks like translation, summarizing history, or writing poems.
+    """
+
     initial_state = {
-        "messages": [{"role": "user", "content": q}],
+        "messages": [
+            {"role": "system", "content": system_persona}, 
+            {"role": "user", "content": q}
+        ],
         "current_query": q,
         "documents": [],
         "plan": ["Start"],
@@ -370,8 +383,21 @@ async def stream_query(
     request_id = str(uuid.uuid4())
     set_request_id(request_id)
 
+    # SYSTEM PROMPT
+    system_persona = """You are an Enterprise IT Assistant specialising in:
+    - Kubernetes (deployment, scaling, operators, networking)
+    - Intel hardware (CPUs, FPGAs, NICs, SRIOV)
+    - Enterprise networking (SDN, VLANs, BGP, routing)
+
+    If the user asks what you can do, ONLY mention these technical capabilities.
+    Do not offer general AI tasks like translation, summarizing history, or writing poems.
+    """
+
     initial_state = {
-        "messages": [{"role": "user", "content": q}],
+        "messages": [
+            {"role": "system", "content": system_persona}, 
+            {"role": "user", "content": q}
+        ],
         "current_query": q,
         "documents": [],
         "plan": ["Start"],
