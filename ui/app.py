@@ -79,12 +79,19 @@ if prompt := st.chat_input("Ask about your documentation..."):
                     # DISTRIBUTED TRACE: Calling Backend
                     with logfire.span("📡 Calling RAG Backend"):
                         # Get backend URL from env, or default to local if not set
-                        base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+                        base_url = os.getenv("BACKEND_URL")
                         url = f"{base_url}/query"
                         payload = {"q": prompt, "thread_id": st.session_state.session_id}
-                        response = requests.post(url, json=payload, timeout=60)
+                        headers = {
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {os.getenv('RAG_API_KEY', '')}",
+                        }
+                        
+                        # First guardrails invocation can be slow as NeMo downloads
+                        # configs/models; allow up to 3 minutes.
+                        response = requests.post(url, json=payload, headers=headers, timeout=180)
                         data = response.json()
-                    
+
                     # Show Reasoning Steps from Backend
                     steps = data.get("thought_process", [])
                     for step in steps:
