@@ -9,12 +9,15 @@ import logfire
 from dotenv import load_dotenv
 
 load_dotenv()
+
 logfire.configure(
     token=os.getenv("LOGFIRE_TOKEN"),
     service_name="enterprise-ingestion-service",
 )
 
 # Now safe to import app modules - logfire is already active
+import time
+import uuid
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
@@ -24,6 +27,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from nemoguardrails.exceptions import LLMCallException
+from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
@@ -33,13 +37,54 @@ from app.agents.graph import workflow
 from app.config import settings
 from app.guardrails.rails import guard, initialize_rails
 from app.health import router as health_router
+from app.logging import set_request_id
 from app.services.health.connection_checker import check_all_connections, log_connection_summary
 from app.utils.streaming import format_sse, stream_agent
 
-# Global variable to hold the compiled agent
-rag_agent = None
+# Custom Prometheus metrics
+RAG_REQUESTS_TOTAL = Counter(
+    "rag_requests_total",
+    "Total number of /query requests",
+    ["status"],
+)
+RAG_REQUEST_DURATION = Histogram(
+    "rag_request_duration_seconds",
+    "Latency of /query requests in seconds",
+)
+GUARDRAILS_BLOCKS_TOTAL = Counter(
+    "guardrails_blocks_total",
+    "Number of requests blocked or allowed by guardrails",
+    ["blocked"],
+)
 
 _security = HTTPBearer(auto_error=False)
+
+
+# Rate Limiting Logic
+def _init_rate_limiter():
+    """Initialize rate limiting. Use Redis in production; fall back to in-memory storage locally."""
+    from limits.storage import RedisStorage
+    from slowapi import Limiter
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.extension import _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+
+    try:
+        storage = RedisStorage(settings.redis_url)
+        # `storage.check()` returns False silently on some failures; ping the
+        # underlying Redis client so we only use Redis when it is really reachable.
+        if not storage.check() or not storage.storage.ping():
+            raise ConnectionError("Redis did not respond to ping")
+        app.state.limiter = Limiter(key_func=get_remote_address, storage_uri=settings.redis_url)
+        app.state.rate_limiter_storage = "redis"
+        logfire.info("🚦 Rate limiting initialized via Redis.")
+    except Exception as e:
+        app.state.limiter = Limiter(key_func=get_remote_address)
+        app.state.rate_limiter_storage = "memory"
+        logfire.warning(f"⚠️ Redis unavailable ({e}); using in-memory rate limiting.")
+
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    return True
 
 
 def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(_security)):
@@ -61,13 +106,65 @@ def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(_security
     return credentials.credentials
 
 
+def _get_limiter_rule(times: int, seconds: int) -> str:
+    """Convert times/seconds into a slowapi limit string, e.g. '20/minute'."""
+    if seconds % 60 == 0:
+        return f"{times}/{seconds // 60}minute"
+    if seconds % 3600 == 0:
+        return f"{times}/{seconds // 3600}hour"
+    return f"{times}/{seconds}second"
+
+
+class _AppLimiter:
+    """
+    Thin wrapper around the Limiter instance that is initialized at startup.
+    Allows routes to be decorated at import time while the real limiter
+    (Redis-backed or in-memory) is configured in startup_event.
+    """
+
+    def limit(self, rule_or_callable):
+        def decorator(func):
+            import functools
+
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                limiter = getattr(app.state, "limiter", None)
+                if limiter is None:
+                    return func(*args, **kwargs)
+
+                rule = rule_or_callable() if callable(rule_or_callable) else rule_or_callable
+                # Build the slowapi wrapper at request time so the limiter
+                # instance and storage backend are always current.
+                return limiter.limit(rule)(func)(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+
+app_limiter = _AppLimiter()
+
+
+def rate_limit(times: int = None, seconds: int = None):
+    """
+    Decorator factory that applies slowapi rate limiting using the limiter
+    initialized at startup. Falls back to a no-op if the limiter is missing.
+    The rule is resolved at request time so settings can be overridden in tests.
+    """
+
+    def _resolve_rule() -> str:
+        t = times or settings.RATE_LIMIT_PER_MINUTE
+        s = seconds or 60
+        return _get_limiter_rule(t, s)
+
+    return app_limiter.limit(_resolve_rule)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Handles startup (DB connections, guardrails) and shutdown.
     """
-    global rag_agent
-
     # Run external connection checks
     logfire.info("Running startup external connection checks...")
     results = await run_in_threadpool(check_all_connections)
@@ -96,7 +193,7 @@ async def lifespan(app: FastAPI):
         await checkpointer.setup()
 
         # Compile the graph with the async checkpointer
-        rag_agent = workflow.compile(checkpointer=checkpointer)
+        app.state.rag_agent = workflow.compile(checkpointer=checkpointer)
 
         # The app serves traffic while inside this block
         yield
@@ -111,6 +208,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+_init_rate_limiter()
 
 app.include_router(health_router)
 
@@ -158,10 +257,12 @@ def home():
 
 
 @app.get("/graph")
-def get_graph_image(api_key: str = Depends(verify_api_key)):
+def get_graph_image(request: Request, _api_key: str = Depends(verify_api_key)):
     """
     Returns the Mermaid image of the agent's workflow.
     """
+    rag_agent = getattr(request.app.state, "rag_agent", None)
+
     if rag_agent is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -175,12 +276,22 @@ def get_graph_image(api_key: str = Depends(verify_api_key)):
 
 
 @app.post("/query", response_model=QueryResponse)
-async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
+@rate_limit()
+async def query(
+    request: Request,
+    body: QueryRequest,
+    _api_key: str = Depends(verify_api_key),
+):
     """
     Executes the LangGraph RAG flow with memory using a POST request.
     """
-    q = request.q
-    thread_id = request.thread_id
+    q = body.q
+    thread_id = body.thread_id
+    request_id = str(uuid.uuid4())
+    set_request_id(request_id)
+
+    start = time.perf_counter()
+    rag_agent = request.app.state.rag_agent
 
     initial_state = {
         "messages": [{"role": "user", "content": q}],
@@ -194,48 +305,70 @@ async def run_query(request: QueryRequest, api_key: str = Depends(verify_api_key
     # Configuration for Memory (Thread ID)
     config = {"configurable": {"thread_id": thread_id}}
 
-    try:
-        # Gate 1: NeMo Guardrails — blocks off-topic, jailbreaks, and handles dialog
-        rail_fired, rail_response = await run_in_threadpool(guard, q)
-        if rail_fired:
-            logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
+    with logfire.span("🔍 /query", request_id=request_id, thread_id=thread_id):
+        try:
+            # Gate 1: NeMo Guardrails — blocks off-topic, jailbreaks, and handles dialog
+            rail_fired, rail_response = await run_in_threadpool(guard, q)
+            if rail_fired:
+                GUARDRAILS_BLOCKS_TOTAL.labels(blocked="true").inc()
+                RAG_REQUESTS_TOTAL.labels(status="blocked").inc()
+                logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
+                return {
+                    "question": q,
+                    "answer": rail_response,
+                    "thought_process": ["Intent: Guardrails Fired", "Retrieval: Skipped"],
+                    "status": "Blocked by guardrails.",
+                    "sources": [],
+                }
+
+            GUARDRAILS_BLOCKS_TOTAL.labels(blocked="false").inc()
+
+            # Gate 2: LangGraph RAG pipeline
+            # Run the graph asynchronously to preserve Logfire context variables
+            final_output = await rag_agent.ainvoke(initial_state, config=config)
+            RAG_REQUESTS_TOTAL.labels(status="success").inc()
+
             return {
                 "question": q,
-                "answer": rail_response,
-                "thought_process": ["Intent: Guardrails Fired", "Retrieval: Skipped"],
-                "status": "Blocked by guardrails.",
-                "sources": [],
+                "answer": final_output.get("final_answer"),
+                "thought_process": final_output.get("plan"),
+                "status": final_output.get("status"),
+                "sources": final_output.get("documents", []),
             }
 
-        # Gate 2: LangGraph RAG pipeline
-        # Run the graph asynchronously to preserve Logfire context variables
-        final_output = await rag_agent.ainvoke(initial_state, config=config)
+        except Exception as e:
+            RAG_REQUESTS_TOTAL.labels(status="error").inc()
+            logfire.error(f"❌ Backend Execution Failed: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "question": q,
+                    "answer": "I apologize, but I encountered an internal error while processing your request. Please try again later.",
+                    "thought_process": ["Error encountered during execution."],
+                    "status": "error",
+                    "sources": [],
+                },
+            )
 
-        return {
-            "question": q,
-            "answer": final_output.get("final_answer"),
-            "thought_process": final_output.get("plan"),
-            "status": final_output.get("status"),
-            "sources": final_output.get("documents", []),
-        }
-    except Exception as e:
-        logfire.error(f"❌ Backend Execution Failed: {e}")
-        return {
-            "question": q,
-            "answer": "I apologize, but I encountered an internal error while processing your request. Please try again later.",
-            "thought_process": ["Error encountered during execution."],
-            "status": "error",
-            "sources": [],
-        }
+        finally:
+            # This ensures latency is tracked no matter what path the code took!
+            RAG_REQUEST_DURATION.observe(time.perf_counter() - start)
 
 
 @app.post("/stream")
-async def stream_query(request: QueryRequest, api_key: str = Depends(verify_api_key)):
+@rate_limit()
+async def stream_query(
+    request: Request,
+    body: QueryRequest,
+    _api_key: str = Depends(verify_api_key),
+):
     """
     Executes the LangGraph RAG flow and streams the output via SSE.
     """
-    q = request.q
-    thread_id = request.thread_id
+    q = body.q
+    thread_id = body.thread_id
+    request_id = str(uuid.uuid4())
+    set_request_id(request_id)
 
     initial_state = {
         "messages": [{"role": "user", "content": q}],
@@ -248,25 +381,33 @@ async def stream_query(request: QueryRequest, api_key: str = Depends(verify_api_
 
     config = {"configurable": {"thread_id": thread_id}}
 
-    # Gate 1: NeMo Guardrails
-    rail_fired, rail_response = await run_in_threadpool(guard, q)
-    if rail_fired:
-        logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
+    with logfire.span("🌊 /stream", request_id=request_id, thread_id=thread_id):
+        # Gate 1: NeMo Guardrails
+        rail_fired, rail_response = await run_in_threadpool(guard, q)
+        if rail_fired:
+            GUARDRAILS_BLOCKS_TOTAL.labels(blocked="true").inc()
+            RAG_REQUESTS_TOTAL.labels(status="blocked").inc()
+            logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
 
-        async def blocked_stream():
-            yield format_sse("status", "Blocked by guardrails.")
-            yield format_sse("token", rail_response)
-            yield format_sse("end")
+            async def blocked_stream():
+                yield format_sse("status", "Blocked by guardrails.")
+                yield format_sse("token", rail_response)
+                yield format_sse("end")
+
+            return StreamingResponse(
+                blocked_stream(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+
+        GUARDRAILS_BLOCKS_TOTAL.labels(blocked="false").inc()
+        RAG_REQUESTS_TOTAL.labels(status="streamed").inc()
+
+        # Gate 2: Pass into the standalone generator
+        rag_agent = request.app.state.rag_agent
 
         return StreamingResponse(
-            blocked_stream(),
+            stream_agent(rag_agent, initial_state, config, thread_id),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
         )
-
-    # Gate 2: Pass into the standalone generator
-    return StreamingResponse(
-        stream_agent(rag_agent, initial_state, config, thread_id),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
-    )
