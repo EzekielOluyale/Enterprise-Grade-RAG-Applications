@@ -59,6 +59,7 @@ jobs:
           DATABASE_URL_ARN: ${{ secrets.DATABASE_URL_ARN }}
           RAG_API_KEY_ARN: ${{ secrets.RAG_API_KEY_ARN }}
           GCP_SERVICE_ACCOUNT_KEY_ARN: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_ARN }}
+          REDIS_URL_ARN: ${{ secrets.REDIS_URL_ARN }}
 
           # --- Environment Variables
           GROQ_MODEL: ${{ vars.GROQ_MODEL }} 
@@ -67,6 +68,7 @@ jobs:
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           VERTEXAI_EMBEDDING_MODEL: ${{ vars.VERTEXAI_EMBEDDING_MODEL }}
           LANGSMITH_PROJECT: ${{ vars.LANGSMITH_PROJECT }}
+          RATE_LIMIT_PER_MINUTE: ${{ vars.RATE_LIMIT_PER_MINUTE }}
 
         run: |
           render() {
@@ -83,12 +85,14 @@ jobs:
               -e "s|<DATABASE_URL_ARN>|$DATABASE_URL_ARN|g" \
               -e "s|<RAG_API_KEY_ARN>|$RAG_API_KEY_ARN|g" \
               -e "s|<GCP_SERVICE_ACCOUNT_KEY_ARN>|$GCP_SERVICE_ACCOUNT_KEY_ARN|g" \
+              -e "s|<REDIS_URL_ARN>|$REDIS_URL_ARN|g" \
               -e "s|<GROQ_MODEL>|$GROQ_MODEL|g" \
               -e "s|<PORTKEY_CONFIG_ID>|$PORTKEY_CONFIG_ID|g" \
               -e "s|<PORTKEY_CHAT_CONFIG_ID>|$PORTKEY_CHAT_CONFIG_ID|g" \
               -e "s|<GCP_PROJECT_ID>|$GCP_PROJECT_ID|g" \
               -e "s|<VERTEXAI_EMBEDDING_MODEL>|$VERTEXAI_EMBEDDING_MODEL|g" \
               -e "s|<LANGSMITH_PROJECT>|$LANGSMITH_PROJECT|g" \
+              -e "s|<RATE_LIMIT_PER_MINUTE>|$RATE_LIMIT_PER_MINUTE|g" \
               "$1" > "$2"
           }
 
