@@ -304,10 +304,7 @@ async def query(
     """
 
     initial_state = {
-        "messages": [
-            {"role": "system", "content": system_persona},
-            {"role": "user", "content": q}
-        ],
+        "messages": [{"role": "system", "content": system_persona}, {"role": "user", "content": q}],
         "current_query": q,
         "documents": [],
         "plan": ["Start"],
@@ -394,10 +391,7 @@ async def stream_query(
     """
 
     initial_state = {
-        "messages": [
-            {"role": "system", "content": system_persona},
-            {"role": "user", "content": q}
-        ],
+        "messages": [{"role": "system", "content": system_persona}, {"role": "user", "content": q}],
         "current_query": q,
         "documents": [],
         "plan": ["Start"],
