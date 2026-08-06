@@ -34,7 +34,6 @@ def generate_node(state: AgentState):
     if query == "CONVERSATIONAL":
         logfire.info("Generating conversational response using memory.")
         prompt = f"""
-        {SYSTEM_PERSONA}
         Answer the user's latest message using the CONVERSATION HISTORY below.
 
         CONVERSATION HISTORY:
@@ -42,6 +41,8 @@ def generate_node(state: AgentState):
 
         LATEST MESSAGE:
         "{user_msg}"
+
+        {SYSTEM_PERSONA}
         """
     else:
         logfire.info("Generating technical RAG response.")
@@ -56,7 +57,6 @@ def generate_node(state: AgentState):
                 break
 
         prompt = f"""
-        {SYSTEM_PERSONA}
         Answer the question using the TECHNICAL CONTEXT provided.
 
         TECHNICAL CONTEXT:
@@ -67,6 +67,8 @@ def generate_node(state: AgentState):
 
         USER QUESTION:
         "{user_msg}"
+
+        {SYSTEM_PERSONA}
         """
 
     with logfire.span("✍️ LLM Synthesis"):
