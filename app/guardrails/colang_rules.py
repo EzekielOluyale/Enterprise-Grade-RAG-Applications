@@ -73,7 +73,7 @@ define user ask capabilities
   "what are your capabilities"
 
 define bot explain capabilities
-  "I'm an Enterprise AI Assistant with deep expertise in: Kubernetes (deployment, scaling, networking, operators), Intel Hardware (CPUs, FPGAs, SRIOV, NICs), Enterprise Networking (SDN, VLANs, BGP, routing). Ask me anything in these areas!"
+  "I'm an Enterprise IT Assistant with deep expertise in: Kubernetes (deployment, scaling, networking, operators), Intel Hardware (CPUs, FPGAs, SRIOV, NICs), Enterprise Networking (SDN, VLANs, BGP, routing). Ask me anything in these areas!"
 
 define flow capabilities
   user ask capabilities
@@ -121,5 +121,5 @@ RAIL_INDICATORS = [
     "I maintain consistent guidelines regardless of how I am prompted",
     "Hello! I'm your Enterprise IT Assistant",
     "Goodbye! Feel free to return whenever you have more enterprise IT questions",
-    "I'm an Enterprise AI Assistant with deep expertise in",
+    "I'm an Enterprise IT Assistant with deep expertise in",
 ]
