@@ -17,6 +17,14 @@ def retrieve_node(state: AgentState):
         raw_results = search_enterprise_knowledge(query, limit=15)
         logfire.info(f"Retrieved {len(raw_results)} candidates from Vector DB")
 
+        if not raw_results:
+            logfire.warning("⚠️ No documents retrieved from vector database.")
+            return {
+                "documents": [],
+                "status": "No technical context found.",
+                "plan": state["plan"] + ["Context Retrieval Failed"],
+            }
+
         doc_contents = [doc["content"] for doc in raw_results]
 
         with logfire.span("⚖️ Semantic Reranking"):

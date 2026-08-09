@@ -1,20 +1,8 @@
 import logfire
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential
 
 from app.agents.state import AgentState
 from app.gateway.client import extract_cache_status, portkey_client
-
-SYSTEM_PERSONA = """You are a strict, Enterprise IT Assistant specialising in:
-- Kubernetes (deployment, scaling, operators, networking)
-- Intel hardware (CPUs, FPGAs, NICs, SRIOV)
-- Enterprise networking (SDN, VLANs, BGP, routing)
-
-CRITICAL RULES YOU MUST NEVER BREAK:
-1. NEVER identify yourself as a "large language model", "AI", or "digital entity".
-2. NEVER apologize or say "I wish I could".
-3. NEVER offer to do creative writing, translation, or general assistance.
-4. If a user asks you to do a non-IT task (like making coffee, telling a joke, or general trivia), you MUST reply EXACTLY with this sentence and nothing else: "I am an Enterprise IT Assistant. I only handle requests related to Kubernetes, Intel hardware, and networking."
-You have no physical body, no feelings, and no general knowledge outside of your IT domain."""
-
 
 def generate_node(state: AgentState):
     """
@@ -34,6 +22,7 @@ def generate_node(state: AgentState):
     if query == "CONVERSATIONAL":
         logfire.info("Generating conversational response using memory.")
         prompt = f"""
+        You are a friendly and helpful Enterprise AI Assistant.
         Answer the user's latest message using the CONVERSATION HISTORY below.
 
         CONVERSATION HISTORY:
@@ -41,8 +30,6 @@ def generate_node(state: AgentState):
 
         LATEST MESSAGE:
         "{user_msg}"
-
-        {SYSTEM_PERSONA}
         """
     else:
         logfire.info("Generating technical RAG response.")
@@ -57,6 +44,7 @@ def generate_node(state: AgentState):
                 break
 
         prompt = f"""
+        You are a Senior Technical Architect.
         Answer the question using the TECHNICAL CONTEXT provided.
 
         TECHNICAL CONTEXT:
@@ -67,16 +55,11 @@ def generate_node(state: AgentState):
 
         USER QUESTION:
         "{user_msg}"
-
-        {SYSTEM_PERSONA}
         """
 
     with logfire.span("✍️ LLM Synthesis"):
         try:
-            response = portkey_client.chat.completions.create(
-                messages=[{"role": "system", "content": SYSTEM_PERSONA}, {"role": "user", "content": prompt}],
-                temperature=0.1,
-            )
+            response = _generate_response(prompt)
             content = response.choices[0].message.content
             cache_status = extract_cache_status(response)
             is_cache_hit = cache_status == "HIT"
@@ -100,3 +83,16 @@ def generate_node(state: AgentState):
         except Exception as e:
             logfire.error(f"LLM Generation failed: {e}")
             raise e
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=5),
+    reraise=True,
+    before_sleep=before_sleep_log(logfire, "warning"),
+)
+def _generate_response(prompt: str):
+    """Call the LLM gateway with retry logic for transient failures."""
+    return portkey_client.chat.completions.create(
+        model=f"@{settings.GROQ_SLUG}/{settings.GROQ_MODEL}",
+        messages=[{"role": "user", "content": prompt}],
+    )

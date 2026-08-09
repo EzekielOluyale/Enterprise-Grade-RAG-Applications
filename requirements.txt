@@ -235,6 +235,7 @@ polyfactory==3.3.0
 portalocker==3.2.0
 portkey-ai==2.3.2
 preshed==3.0.13
+prometheus-fastapi-instrumentator==8.1.0
 prometheus_client==0.24.1
 prompt_toolkit==3.0.52
 propcache==0.5.2
