@@ -2,7 +2,9 @@ import logfire
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential
 
 from app.agents.state import AgentState
+from app.config import settings
 from app.gateway.client import extract_cache_status, portkey_client
+
 
 def generate_node(state: AgentState):
     """
@@ -83,6 +85,7 @@ def generate_node(state: AgentState):
         except Exception as e:
             logfire.error(f"LLM Generation failed: {e}")
             raise e
+
 
 @retry(
     stop=stop_after_attempt(3),
