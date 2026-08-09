@@ -27,3 +27,11 @@ ignore = ["E501"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning:nemoguardrails.*",
+]
+
+[tool.logfire]
+ignore_no_config = true
