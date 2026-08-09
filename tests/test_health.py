@@ -35,9 +35,9 @@ def test_ready_when_all_dependencies_healthy():
         "logfire": _ok("logfire"),
         "langsmith": _ok("langsmith"),
     }
-    
-    # NOTE: Ensure the patch string matches exactly where your API router imports 
-    # the check_all_connections function. 
+
+    # NOTE: Ensure the patch string matches exactly where your API router imports
+    # the check_all_connections function.
     with patch("app.health.check_all_connections", return_value=results):
         client = TestClient(app)
         response = client.get("/ready")
@@ -59,7 +59,7 @@ def test_ready_returns_503_when_any_dependency_fails():
         "logfire": _ok("logfire"),
         "langsmith": _ok("langsmith"),
     }
-    
+
     with patch("app.health.check_all_connections", return_value=results):
         client = TestClient(app)
         response = client.get("/ready")
