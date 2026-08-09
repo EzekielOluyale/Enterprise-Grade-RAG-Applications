@@ -33,13 +33,13 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, Field
 
+from app.agents.graph import build_graph
 from app.config import settings
 from app.guardrails.rails import guard, initialize_rails
 from app.health import router as health_router
 from app.logging import set_request_id
 from app.services.health.connection_checker import check_all_connections, log_connection_summary
 from app.utils.streaming import format_sse, stream_agent
-from app.agents.graph import build_graph
 
 # Custom Prometheus metrics
 RAG_REQUESTS_TOTAL = Counter(
@@ -141,7 +141,9 @@ class _AppLimiter:
 
         return decorator
 
+
 app_limiter = _AppLimiter()
+
 
 def rate_limit(times: int = None, seconds: int = None):
     """
@@ -156,6 +158,7 @@ def rate_limit(times: int = None, seconds: int = None):
         return _get_limiter_rule(t, s)
 
     return app_limiter.limit(_resolve_rule)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
