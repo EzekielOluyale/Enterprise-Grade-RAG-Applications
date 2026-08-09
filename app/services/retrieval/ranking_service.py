@@ -7,6 +7,7 @@ from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponenti
 # Lazy initialization - Ranker is loaded on first use to ensure logfire.configure() has run
 _ranker = None
 
+
 class _FlashRankWrapper:
     def __init__(self):
         try:
@@ -20,12 +21,13 @@ class _FlashRankWrapper:
         passages = [{"id": i, "text": doc} for i, doc in enumerate(documents)]
         request = RerankRequest(query=query, passages=passages)
         results = self.ranker.rerank(request)
-        
+
         reranked_docs = []
         for res in results[:top_n]:
             reranked_docs.append(res["text"])
-            
+
         return reranked_docs
+
 
 def _get_ranker() -> Ranker:
     """
@@ -38,6 +40,7 @@ def _get_ranker() -> Ranker:
         _ranker = _FlashRankWrapper()
     return _ranker
 
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=5),
@@ -46,7 +49,7 @@ def _get_ranker() -> Ranker:
 )
 def _rerank(query: str, documents: list[str], top_n: int) -> list[str]:
     """Core FlashRank reranking with retry on transient failures."""
-    ranker = _get_ranker() 
+    ranker = _get_ranker()
     return ranker.rerank(query, documents, top_n)
 
 
