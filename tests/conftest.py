@@ -8,9 +8,14 @@ def cleanup_prometheus_registry():
     Automatically clear Prometheus metrics before tests run
     so we don't get 'Duplicated timeseries' errors.
     """
-    # Unregister everything in the global registry before tests
-    collectors = list(REGISTRY._names_to_collectors.values())
+    # Use set() to get unique collectors and prevent duplicate unregistering
+    collectors = list(set(REGISTRY._names_to_collectors.values()))
+
     for collector in collectors:
-        REGISTRY.unregister(collector)
+        try:
+            REGISTRY.unregister(collector)
+        except KeyError:
+            # Already unregistered, safe to ignore
+            pass
 
     yield
