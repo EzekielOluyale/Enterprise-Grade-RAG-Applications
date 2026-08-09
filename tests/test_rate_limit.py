@@ -27,8 +27,12 @@ def test_rate_limit_blocks_excessive_requests():
                 response1 = client.post("/query", json={"q": "hi", "thread_id": "test-1"})
                 response2 = client.post("/query", json={"q": "hi again", "thread_id": "test-1"})
 
-        assert response1.status_code == 200, f"Expected 200 on first request, got {response1.status_code}: {response1.text}"
-        assert response2.status_code == 429, f"Expected 429 on rate limit, got {response2.status_code}: {response2.text}"
+        assert response1.status_code == 200, (
+            f"Expected 200 on first request, got {response1.status_code}: {response1.text}"
+        )
+        assert response2.status_code == 429, (
+            f"Expected 429 on rate limit, got {response2.status_code}: {response2.text}"
+        )
 
     finally:
         settings.RATE_LIMIT_PER_MINUTE = original_rate
