@@ -28,6 +28,7 @@ def format_sse(event_type: str, content: any = None, event_id: str = None) -> st
 
 async def stream_agent(agent_instance, initial_state: dict, config: dict, thread_id: str):
     from app.main import RAG_REQUESTS_TOTAL
+
     """
     Standalone generator function that executes the LangGraph workflow
     and yields SSE formatted chunks.
