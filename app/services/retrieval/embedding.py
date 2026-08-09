@@ -1,7 +1,6 @@
-import time
-
 import logfire
 from portkey_ai import Portkey
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
 
@@ -39,38 +38,25 @@ def get_embedding_dim() -> int:
     return _EMBEDDING_DIM
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=5),
+    reraise=True,
+    before_sleep=before_sleep_log(logfire, "warning"),
+)
 def _embed_batch(batch: list[str]) -> list[list[float]]:
-    """Sends each text in the batch safely to preserve 1-to-1 vector mapping."""
+    """Sends the entire batch in a single API call with automatic retries."""
     _init_client()
-    batch_embeddings = []
-    for text in batch:
-        for attempt in range(4):
-            try:
-                response = _portkey_client.embeddings.create(input=[text], model=settings.VERTEXAI_EMBEDDING_MODEL)
-                batch_embeddings.append(response.data[0].embedding)
-                break
-            except Exception as e:
-                err = str(e).lower()
-                is_rate_limit = any(x in err for x in ("429", "rate", "quota", "resource_exhausted"))
-                if is_rate_limit and attempt < 3:
-                    wait = 2**attempt
-                    logfire.warning(f"Embedding rate limit hit — retrying in {wait}s (attempt {attempt + 1}/4).")
-                    time.sleep(wait)
-                else:
-                    logfire.error(f"Embedding failed for text item: {e}")
-                    raise
-    return batch_embeddings
+
+    response = _portkey_client.embeddings.create(input=batch, model=settings.VERTEXAI_EMBEDDING_MODEL)
+
+    # Extract embeddings preserving exact order returned by the API
+    return [item.embedding for item in response.data]
 
 
 def embed_query(query: str) -> list[float]:
     """Generates an embedding for a single search query."""
-    _init_client()
-    try:
-        response = _portkey_client.embeddings.create(input=[query], model=settings.VERTEXAI_EMBEDDING_MODEL)
-        return response.data[0].embedding
-    except Exception as e:
-        logfire.error(f"❌ Portkey query embedding failed: {e}")
-        raise
+    return _embed_batch([query])[0]
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
