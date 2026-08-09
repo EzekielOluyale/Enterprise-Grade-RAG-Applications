@@ -4,9 +4,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app.main import app
-
-from app.main import verify_api_key
+from app.main import app, verify_api_key
 
 
 def test_metrics_endpoint_exposes_rag_counters():
