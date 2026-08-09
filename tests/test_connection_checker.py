@@ -1,6 +1,7 @@
 """Tests for app.services.health.connection_checker."""
 
 from unittest.mock import MagicMock, patch
+
 import requests
 
 from app.services.health.connection_checker import (
@@ -24,6 +25,7 @@ def _ok(name: str) -> ConnectionResult:
 def _fail(name: str, message: str = "fail") -> ConnectionResult:
     return ConnectionResult(name, False, message)
 
+
 # CONNECTION RESULT DATA CLASS TESTS
 def test_connection_result_to_dict_ok():
     """Verify dictionary formatting for healthy results."""
@@ -42,6 +44,7 @@ def test_connection_result_to_dict_unavailable():
     assert d["message"] == "timeout error"
     assert d["status"] == "unavailable: timeout error"
 
+
 # SUPABASE POSTGRES TESTS
 def test_check_supabase_postgres_success():
     """Verify healthy status when Postgres pool connects and executes query."""
@@ -52,12 +55,15 @@ def test_check_supabase_postgres_success():
     mock_pool.getconn.return_value = mock_conn
     mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-    with patch(
-        "app.services.health.connection_checker.ConnectionPool",
-        return_value=mock_pool,
-    ), patch(
-        "app.services.health.connection_checker.settings.SUPABASE_URI",
-        "postgresql://user:pass@localhost:5432/db",
+    with (
+        patch(
+            "app.services.health.connection_checker.ConnectionPool",
+            return_value=mock_pool,
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.SUPABASE_URI",
+            "postgresql://user:pass@localhost:5432/db",
+        ),
     ):
         result = _check_supabase_postgres()
 
@@ -71,9 +77,7 @@ def test_check_supabase_postgres_success():
 
 def test_check_supabase_postgres_missing_uri():
     """Verify failure when SUPABASE_URI environment variable is missing."""
-    with patch(
-        "app.services.health.connection_checker.settings.SUPABASE_URI", None
-    ):
+    with patch("app.services.health.connection_checker.settings.SUPABASE_URI", None):
         result = _check_supabase_postgres()
 
     assert result.healthy is False
@@ -83,12 +87,15 @@ def test_check_supabase_postgres_missing_uri():
 
 def test_check_supabase_postgres_failure():
     """Verify unhealthy status when Postgres pool throws a connection exception."""
-    with patch(
-        "app.services.health.connection_checker.ConnectionPool",
-        side_effect=Exception("Connection refused by Supabase"),
-    ), patch(
-        "app.services.health.connection_checker.settings.SUPABASE_URI",
-        "postgresql://user:pass@localhost:5432/db",
+    with (
+        patch(
+            "app.services.health.connection_checker.ConnectionPool",
+            side_effect=Exception("Connection refused by Supabase"),
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.SUPABASE_URI",
+            "postgresql://user:pass@localhost:5432/db",
+        ),
     ):
         result = _check_supabase_postgres()
 
@@ -96,16 +103,20 @@ def test_check_supabase_postgres_failure():
     assert result.name == "postgres"
     assert "Connection refused by Supabase" in result.message
 
+
 # QDRANT VECTOR DB TESTS
 def test_check_qdrant_success():
     """Verify healthy status when Qdrant client fetches collections successfully."""
     mock_client = MagicMock()
-    with patch(
-        "app.services.health.connection_checker.QdrantClient",
-        return_value=mock_client,
-    ), patch(
-        "app.services.health.connection_checker.settings.QDRANT_URL",
-        "https://qdrant.example.com",
+    with (
+        patch(
+            "app.services.health.connection_checker.QdrantClient",
+            return_value=mock_client,
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.QDRANT_URL",
+            "https://qdrant.example.com",
+        ),
     ):
         result = _check_qdrant()
 
@@ -116,9 +127,7 @@ def test_check_qdrant_success():
 
 def test_check_qdrant_missing_url():
     """Verify failure when QDRANT_URL environment variable is missing."""
-    with patch(
-        "app.services.health.connection_checker.settings.QDRANT_URL", None
-    ):
+    with patch("app.services.health.connection_checker.settings.QDRANT_URL", None):
         result = _check_qdrant()
 
     assert result.healthy is False
@@ -128,17 +137,21 @@ def test_check_qdrant_missing_url():
 
 def test_check_qdrant_failure():
     """Verify unhealthy status when Qdrant client raises an exception."""
-    with patch(
-        "app.services.health.connection_checker.QdrantClient",
-        side_effect=Exception("Unauthorized vector DB access"),
-    ), patch(
-        "app.services.health.connection_checker.settings.QDRANT_URL",
-        "https://qdrant.example.com",
+    with (
+        patch(
+            "app.services.health.connection_checker.QdrantClient",
+            side_effect=Exception("Unauthorized vector DB access"),
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.QDRANT_URL",
+            "https://qdrant.example.com",
+        ),
     ):
         result = _check_qdrant()
 
     assert result.healthy is False
     assert "Unauthorized vector DB access" in result.message
+
 
 # PORTKEY LLM GATEWAY TESTS
 def test_check_portkey_gateway_success():
@@ -171,18 +184,22 @@ def test_check_portkey_gateway_empty_response():
     assert result.name == "llm_gateway"
     assert "empty response" in result.message
 
+
 # GROQ LLM TESTS
 def test_check_groq_llm_success():
     """Verify healthy status when direct HTTP call to Groq succeeds."""
     mock_response = MagicMock()
     mock_response.raise_for_status = MagicMock()
 
-    with patch(
-        "app.services.health.connection_checker.requests.post",
-        return_value=mock_response,
-    ), patch(
-        "app.services.health.connection_checker.settings.GROQ_API_KEY",
-        "gsk_fake_key",
+    with (
+        patch(
+            "app.services.health.connection_checker.requests.post",
+            return_value=mock_response,
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.GROQ_API_KEY",
+            "gsk_fake_key",
+        ),
     ):
         result = _check_groq_llm()
 
@@ -192,9 +209,7 @@ def test_check_groq_llm_success():
 
 def test_check_groq_llm_missing_key():
     """Verify failure when GROQ_API_KEY environment variable is not set."""
-    with patch(
-        "app.services.health.connection_checker.settings.GROQ_API_KEY", None
-    ):
+    with patch("app.services.health.connection_checker.settings.GROQ_API_KEY", None):
         result = _check_groq_llm()
 
     assert result.healthy is False
@@ -204,21 +219,23 @@ def test_check_groq_llm_missing_key():
 def test_check_groq_llm_failure():
     """Verify unhealthy status when Groq HTTP call raises HTTPError."""
     mock_response = MagicMock()
-    mock_response.raise_for_status.side_effect = requests.HTTPError(
-        "401 Unauthorized"
-    )
+    mock_response.raise_for_status.side_effect = requests.HTTPError("401 Unauthorized")
 
-    with patch(
-        "app.services.health.connection_checker.requests.post",
-        return_value=mock_response,
-    ), patch(
-        "app.services.health.connection_checker.settings.GROQ_API_KEY",
-        "gsk_fake_key",
+    with (
+        patch(
+            "app.services.health.connection_checker.requests.post",
+            return_value=mock_response,
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.GROQ_API_KEY",
+            "gsk_fake_key",
+        ),
     ):
         result = _check_groq_llm()
 
     assert result.healthy is False
     assert "401 Unauthorized" in result.message
+
 
 # LOGFIRE MONITORING TESTS
 def test_check_logfire_success():
@@ -235,13 +252,12 @@ def test_check_logfire_success():
 
 def test_check_logfire_missing_token():
     """Verify failure status when LOGFIRE_TOKEN is missing."""
-    with patch(
-        "app.services.health.connection_checker.settings.LOGFIRE_TOKEN", None
-    ):
+    with patch("app.services.health.connection_checker.settings.LOGFIRE_TOKEN", None):
         result = _check_logfire()
 
     assert result.healthy is False
     assert "LOGFIRE_TOKEN not set" in result.message
+
 
 # LANGSMITH TRACING TESTS
 def test_check_langsmith_success():
@@ -249,15 +265,19 @@ def test_check_langsmith_success():
     mock_response = MagicMock()
     mock_response.raise_for_status = MagicMock()
 
-    with patch(
-        "app.services.health.connection_checker.requests.get",
-        return_value=mock_response,
-    ), patch(
-        "app.services.health.connection_checker.settings.LANGSMITH_API_KEY",
-        "lsv2_fake_key",
-    ), patch(
-        "app.services.health.connection_checker.settings.LANGSMITH_ENDPOINT",
-        "https://api.smith.langchain.com",
+    with (
+        patch(
+            "app.services.health.connection_checker.requests.get",
+            return_value=mock_response,
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.LANGSMITH_API_KEY",
+            "lsv2_fake_key",
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.LANGSMITH_ENDPOINT",
+            "https://api.smith.langchain.com",
+        ),
     ):
         result = _check_langsmith()
 
@@ -280,24 +300,27 @@ def test_check_langsmith_missing_key():
 def test_check_langsmith_failure():
     """Verify unhealthy status when LangSmith endpoint is unreachable."""
     mock_response = MagicMock()
-    mock_response.raise_for_status.side_effect = requests.HTTPError(
-        "500 Internal Error"
-    )
+    mock_response.raise_for_status.side_effect = requests.HTTPError("500 Internal Error")
 
-    with patch(
-        "app.services.health.connection_checker.requests.get",
-        return_value=mock_response,
-    ), patch(
-        "app.services.health.connection_checker.settings.LANGSMITH_API_KEY",
-        "lsv2_fake_key",
-    ), patch(
-        "app.services.health.connection_checker.settings.LANGSMITH_ENDPOINT",
-        "https://api.smith.langchain.com",
+    with (
+        patch(
+            "app.services.health.connection_checker.requests.get",
+            return_value=mock_response,
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.LANGSMITH_API_KEY",
+            "lsv2_fake_key",
+        ),
+        patch(
+            "app.services.health.connection_checker.settings.LANGSMITH_ENDPOINT",
+            "https://api.smith.langchain.com",
+        ),
     ):
         result = _check_langsmith()
 
     assert result.healthy is False
     assert "500 Internal Error" in result.message
+
 
 # AGGREGATOR & CLI REPORT TESTS
 def test_check_all_connections_runs_all_six_checkers():
@@ -311,9 +334,7 @@ def test_check_all_connections_runs_all_six_checkers():
         lambda: _fail("langsmith"),
     ]
 
-    with patch(
-        "app.services.health.connection_checker._CHECKERS", mock_checkers
-    ):
+    with patch("app.services.health.connection_checker._CHECKERS", mock_checkers):
         results = check_all_connections()
 
     assert len(results) == 6
