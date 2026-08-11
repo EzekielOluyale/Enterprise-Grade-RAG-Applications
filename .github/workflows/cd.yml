@@ -12,7 +12,6 @@ env:
   ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
   ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
   ECS_SERVICE_API: ${{ secrets.ECS_SERVICE_API }}
-  BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
 jobs:
   deploy:
