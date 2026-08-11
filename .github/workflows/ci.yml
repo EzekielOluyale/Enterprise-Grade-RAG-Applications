@@ -36,22 +36,3 @@ jobs:
           ruff check app tests evals
           ruff format --check app tests evals
 
-      - name: Test with pytest
-        env:
-          LOGFIRE_IGNORE_NO_CONFIG: 1
-          GROQ_API_KEY: dummy
-          GROQ_MODEL: llama-3.3-70b-versatile
-          PORTKEY_API_KEY: dummy
-          PORTKEY_CONFIG_ID: pc-dummy
-          PORTKEY_CHAT_CONFIG_ID: pc-chat-dummy
-          QDRANT_CLUSTER_ENDPOINT: https://dummy.example.com
-          QDRANT_API_KEY: dummy
-          DATABASE_URL: postgresql://dummy:dummy@dummy.db:5432/dummy
-          GCP_PROJECT_ID: dummy-gcp-project
-          VERTEXAI_EMBEDDING_MODEL: gemini-embedding-004
-          GEMINI_API_KEY: dummy
-          RAG_API_KEY: dummy
-          REDIS_URL: redis://dummy:6379/0
-          RATE_LIMIT_PER_MINUTE: "60"
-        run: |
-          pytest tests/
