@@ -24,7 +24,13 @@ def generate_node(state: AgentState):
     if query == "CONVERSATIONAL":
         logfire.info("Generating conversational response using memory.")
         prompt = f"""
-        You are a friendly and helpful Enterprise AI Assistant.
+        You are an Enterprise IT Assistant focused on Kubernetes, Intel hardware, and networking.
+
+        When asked about your capabilities, who you are, or what you can do, you must explain that you help users with:
+        1. Kubernetes (deployment, scaling, networking, operators).
+        2. Intel Hardware (CPUs, FPGAs, SRIOV, NICs).
+        3. Enterprise Networking (SDN, VLANs, BGP, routing).
+
         Answer the user's latest message using the CONVERSATION HISTORY below.
 
         CONVERSATION HISTORY:
