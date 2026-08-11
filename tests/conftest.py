@@ -1,13 +1,11 @@
-from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock
-
 import pytest
-from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock
+from contextlib import asynccontextmanager
 from prometheus_client import REGISTRY
+from fastapi.testclient import TestClient
 
 # IMPORTANT: Update this import path to point to your actual FastAPI 'app'
-from app.main import app
-
+from app.main import app 
 
 @pytest.fixture(autouse=True, scope="session")
 def cleanup_prometheus_registry():
@@ -23,32 +21,33 @@ def cleanup_prometheus_registry():
             pass
     yield
 
-
-@pytest.fixture
-def client():
+@pytest.fixture(autouse=True)
+def bypass_lifespan():
     """
-    FastAPI TestClient fixture that completely bypasses the production lifespan.
-    This safely injects mocked dependencies into app.state WITHOUT letting
-    the real lifespan overwrite them.
+    AUTOUSE=TRUE is the secret here.
+    This forces FastAPI to use the fake lifespan for EVERY single test automatically.
+    Even if a test manually calls `with TestClient(app):`, it will use this safe lifespan.
     """
-
-    # Create a dummy lifespan
     @asynccontextmanager
-    async def test_lifespan(app):
-        # Safely inject the mock pool here, during the startup phase
-        app.state.pool = AsyncMock()
-        # (If you need a mock checkpointer on state, add it here too)
+    async def test_lifespan(app_instance):
+        # Inject the mock pool safely
+        app_instance.state.pool = AsyncMock()
         yield
-        # Teardown phase (if needed)
 
     # Swap the production lifespan with our dummy lifespan
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = test_lifespan
+    
+    yield
+    
+    # Restore the original lifespan after the test completes
+    app.router.lifespan_context = original_lifespan
 
-    try:
-        # Yield the test client. It will now run the dummy lifespan above!
-        with TestClient(app) as test_client:
-            yield test_client
-    finally:
-        # Restore the original lifespan
-        app.router.lifespan_context = original_lifespan
+@pytest.fixture
+def client():
+    """
+    FastAPI TestClient fixture. 
+    Tests can use this, but even if they don't, `bypass_lifespan` protects them.
+    """
+    with TestClient(app) as test_client:
+        yield test_client
