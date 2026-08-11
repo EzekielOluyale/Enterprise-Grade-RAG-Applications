@@ -1,11 +1,11 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
-from langgraph.checkpoint.memory import MemorySaver
 from prometheus_client import REGISTRY
 
-# IMPORTANT: Update this import path to point to your actual FastAPI 'app' instance
+# IMPORTANT: Update this import path to point to your actual FastAPI 'app'
 from app.main import app
 
 
@@ -16,55 +16,39 @@ def cleanup_prometheus_registry():
     so we don't get 'Duplicated timeseries' errors.
     """
     collectors = list(set(REGISTRY._names_to_collectors.values()))
-
     for collector in collectors:
         try:
             REGISTRY.unregister(collector)
         except KeyError:
             pass
-
     yield
-
-
-@pytest.fixture(autouse=True)
-def mock_postgres_and_checkpointer():
-    """
-    Prevents psycopg_pool from attempting real DB connections to 'dummy.db'
-    and swaps LangGraph's PostgresSaver for MemorySaver.
-    """
-    mock_pool = MagicMock()
-    mock_conn = AsyncMock()
-
-    # Mock async context manager for connection acquisition
-    mock_pool.connection.return_value.__aenter__.return_value = mock_conn
-    mock_pool.connection.return_value.__aexit__.return_value = None
-
-    # Instantiate LangGraph's MemorySaver for test execution
-    memory_checkpointer = MemorySaver()
-    # Mock the setup() method as async so it doesn't crash when `await checkpointer.setup()` is called
-    memory_checkpointer.setup = AsyncMock()
-
-    # Patch the connection pools and LangGraph's PostgresSaver globally
-    # Note: If this fails to mock, you might need to patch "app.main.AsyncPostgresSaver" instead
-    with (
-        patch("psycopg_pool.AsyncConnectionPool", return_value=mock_pool),
-        patch("psycopg_pool.ConnectionPool", return_value=mock_pool),
-        patch("langgraph.checkpoint.postgres.aio.AsyncPostgresSaver", return_value=memory_checkpointer),
-    ):
-        yield
 
 
 @pytest.fixture
 def client():
     """
-    FastAPI TestClient fixture. Uses the mocked pool on app.state.
+    FastAPI TestClient fixture that completely bypasses the production lifespan.
+    This safely injects mocked dependencies into app.state WITHOUT letting
+    the real lifespan overwrite them.
     """
-    mock_pool = MagicMock()
-    mock_conn = AsyncMock()
-    mock_pool.connection.return_value.__aenter__.return_value = mock_conn
-    mock_pool.connection.return_value.__aexit__.return_value = None
 
-    app.state.pool = mock_pool
+    # Create a dummy lifespan
+    @asynccontextmanager
+    async def test_lifespan(app):
+        # Safely inject the mock pool here, during the startup phase
+        app.state.pool = AsyncMock()
+        # (If you need a mock checkpointer on state, add it here too)
+        yield
+        # Teardown phase (if needed)
 
-    with TestClient(app) as test_client:
-        yield test_client
+    # Swap the production lifespan with our dummy lifespan
+    original_lifespan = app.router.lifespan_context
+    app.router.lifespan_context = test_lifespan
+
+    try:
+        # Yield the test client. It will now run the dummy lifespan above!
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        # Restore the original lifespan
+        app.router.lifespan_context = original_lifespan
