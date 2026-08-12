@@ -29,18 +29,13 @@ def generate_node(state: AgentState):
         - Intel Hardware (CPUs, FPGAs, SRIOV, NICs)
         - Enterprise Networking (SDN, VLANs, BGP, routing)
 
-        Answer the user's latest message using the CONVERSATION HISTORY below.
+        CRITICAL RULES:
+        1. If the user asks about your capabilities ("what can you do", "who are you"), reply ONLY with:
+           "I'm an Enterprise IT Assistant focused on Kubernetes, Intel hardware, and networking. I can help you with deployment, scaling, hardware specifications, and networking architectures. What can I help you with today?"
+        2. If the user asks an off-topic or general question (such as finance, celebrities, math, coding outside these topics, etc.), you MUST refuse to answer. Say:
+           "I'm an Enterprise IT Assistant focused on Kubernetes, Intel hardware, and networking. I can't help with that — but ask me anything technical!"
+        3. Do not attempt to answer off-topic questions or look up general facts.
 
-        CONVERSATION HISTORY:
-        {history_str}
-
-        LATEST MESSAGE:
-        "{user_msg}"
-        """
-    if query == "CONVERSATIONAL":
-        logfire.info("Generating conversational response using memory.")
-        prompt = f"""
-        You are a friendly and helpful Enterprise AI Assistant.
         Answer the user's latest message using the CONVERSATION HISTORY below.
 
         CONVERSATION HISTORY:
