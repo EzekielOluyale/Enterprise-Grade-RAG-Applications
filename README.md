@@ -6,13 +6,13 @@ A production-grade, enterprise-level RAG system built with **LangGraph**, **Port
 
 - **Agentic Intelligence**: LangGraph for cyclic reasoning, multi-step planning, and conversation memory.
 - **Guardrails**: NeMo Guardrails gate blocks off-topic, jailbreak, and injection inputs before any retrieval.
-- **LLM Gateway**: Portkey routes all LLM calls with automatic fallback between OpenAI and Anthropic via your configured Portkey virtual providers.
-- **Enterprise Search**: Qdrant Cloud for high-performance vector search + Jina AI Reranker API for semantic reranking.
-- **Jina AI Embeddings**: `jina-embeddings-v3` (1024-dim) via Jina API, with local `mxbai-embed-large-v1` fallback.
+- **LLM Gateway**: Portkey manages routing, semantic caching, and automatic fallbacks, powering the core reasoning engine with Groq (Llama 3.3).
+- **Enterprise Search**: Qdrant Cloud for high-performance vector search + FlashRank for cross-encoder semantic reranking.
+- **Vertex AI Embeddings**: `Google Vertex AI` (1024-dim) as the primary embedding model, with an automatic fallback to `Gemini embeddings` (1024-dim).
 - **Local Document Parsing**: PDF, HTML, TXT, DOCX, PPTX parsed entirely on-device — no external OCR service.
 - **Observability**: Full trace nesting with **Pydantic Logfire** and **LangSmith** across every agent node.
 - **Metrics**: Prometheus `/metrics` endpoint with custom RAG and guardrails counters.
-- **Synchronous `/query`**: The LangGraph pipeline runs directly inside the `/query` endpoint and returns the final answer.
+- **Asynchronous `/query`**: The LangGraph pipeline runs asynchronously directly inside the `/query` endpoint and returns the final answer.
 - **API Key & Rate Limiting**: Optional bearer-token auth and Redis-backed (or in-memory) rate limiting.
 - **Evaluation Suite**: RAGAS-powered eval pipeline (6 metrics) with a dedicated Streamlit demo app and a headless `evals/run_evals.py` script.
 
@@ -68,11 +68,11 @@ graph TD
 | Layer | Technology |
 |-------|-----------|
 | Orchestration | LangChain + LangGraph |
-| LLMs | OpenAI `gpt-5-mini` + Anthropic fallback via **Portkey** gateway |
+| LLMs | `Groq` (Llama 3.3) + VertexAI Gemini model via **Portkey** gateway |
 | Guardrails | NeMo Guardrails |
 | Vector DB | Qdrant Cloud |
-| Reranking | Jina AI Reranker API (`jina-reranker-v3`) |
-| Embeddings | Jina AI `jina-embeddings-v3` (1024-dim) + local mxbai fallback |
+| Reranking | FlashRank (Cross-encoder) |
+| Embeddings | Google Vertex AI + Gemini API fallback |
 | Document Parsing | pypdf + pdfplumber (local, no OCR service) |
 | Observability | Pydantic Logfire + LangSmith |
 | Evaluation | RAGAS + custom Tool Correctness (Jaccard) |
@@ -94,23 +94,18 @@ pip install -r requirements.txt
 Create a `.env` file with the following keys:
 
 ```env
-# OpenAI LLM
-OPENAI_API_KEY = "..."
+# Groq LLM
+GROQ_API_KEY = "..."
 
 # LLM Gateway
 PORTKEY_API_KEY = "..."
 
-# Jina AI Embeddings + Reranker API
-JINA_API_KEY = "..."
+# VertexAI Embeddings
+VERTEXAI_EMBEDDING_MODEL = "..."
 
 # Vector DB
 QDRANT_API_KEY = "..."
 QDRANT_CLUSTER_ENDPOINT = "https://your-cluster.cloud.qdrant.io:6333"
-
-# Production persistence (Neon) & cache (Upstash Redis)
-NEON_DB_URL = "postgresql://user:password@host.neon.tech/enterprise_rag?sslmode=require"
-UPSTASH_REDIS_REST_URL = "https://your-db.upstash.io"
-UPSTASH_REDIS_REST_TOKEN = "your-upstash-token"
 
 # API safety
 RAG_API_KEY = ""                       # set in production to require bearer auth
@@ -124,7 +119,7 @@ LANGSMITH_TRACING = true
 LANGSMITH_ENDPOINT = https://api.smith.langchain.com
 
 # Evals
-JUDGE_OPENAI_API_KEY = "..."
+JUDGE_GROQ = "..."
 
 # Backend (for Streamlit UI)
 BACKEND_URL = "http://localhost:8000"
@@ -142,7 +137,7 @@ python -m app.ingestion.processor DATA --wipe
 
 ### 4. Launch the app
 
-The `/query` endpoint runs the LangGraph pipeline synchronously. You only need the FastAPI server and (optionally) the Streamlit UI. Redis and Postgres are managed by Upstash and Neon; no local persistence services are required.
+The `/query` endpoint runs the LangGraph pipeline asynchronously. You only need the FastAPI server and (optionally) the Streamlit UI. 
 
 > **Tip:** You can verify all external connections before starting the server:
 > ```bash
