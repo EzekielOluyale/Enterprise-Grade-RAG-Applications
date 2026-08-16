@@ -9,7 +9,7 @@ A production-grade, enterprise-level RAG system built with **LangGraph**, **Port
 - **LLM Gateway**: Portkey manages routing, semantic caching, and automatic fallbacks, powering the core reasoning engine with Groq (Llama 3.3).
 - **Enterprise Search**: Qdrant Cloud for high-performance vector search + FlashRank for cross-encoder semantic reranking.
 - **Vertex AI Embeddings**: `Google Vertex AI` (1024-dim) as the primary embedding model, with an automatic fallback to `Gemini embeddings` (1024-dim).
-- **Local Document Parsing**: PDF, HTML, TXT, DOCX, PPTX parsed entirely on-device — no external OCR service.
+- **Local Document Parsing**: PDF, HTML, TXT, DOCX, PPTX parsed entirely on-device using Docling — no external OCR service.
 - **Observability**: Full trace nesting with **Pydantic Logfire** and **LangSmith** across every agent node.
 - **Metrics**: Prometheus `/metrics` endpoint with custom RAG and guardrails counters.
 - **Asynchronous `/query`**: The LangGraph pipeline runs asynchronously directly inside the `/query` endpoint and returns the final answer.
@@ -29,7 +29,7 @@ graph TD
     Guard -->|Pass| Planner{Planner Node}
     Planner -->|Conversational| Responder[Responder Node]
     Planner -->|Technical| Retriever[Retriever Node]
-    Retriever --> Reranker[Jina AI Reranker API]
+    Retriever --> Reranker[FlashRank]
     Reranker --> Responder
     Responder --> UI
     Responder -.-> Memory[(LangGraph MemorySaver)]
@@ -73,7 +73,7 @@ graph TD
 | Vector DB | Qdrant Cloud |
 | Reranking | FlashRank (Cross-encoder) |
 | Embeddings | Google Vertex AI + Gemini API fallback |
-| Document Parsing | pypdf + pdfplumber (local, no OCR service) |
+| Document Parsing | Docling |
 | Observability | Pydantic Logfire + LangSmith |
 | Evaluation | RAGAS + custom Tool Correctness (Jaccard) |
 
@@ -96,12 +96,26 @@ Create a `.env` file with the following keys:
 ```env
 # Groq LLM
 GROQ_API_KEY = "..."
+GROQ_MODEL = "..."
 
 # LLM Gateway
 PORTKEY_API_KEY = "..."
+PORTKEY_CONFIG_ID = "..."
+PORTKEY_CHAT_CONFIG_ID= "..."
+
+# Production persistence (Supabase serverless Postgres) & cache (Upstash Redis)
+DATABASE_URL = ""
+REDIS_URL = ""
+
+# Google Cloud Console
+GCP_PROJECT_ID = "..."
+GOOGLE_APPLICATION_CREDENTIALS = "..."
 
 # VertexAI Embeddings
 VERTEXAI_EMBEDDING_MODEL = "..."
+
+# FALLBACK EMBEDDING
+GEMINI_API_KEY = ""
 
 # Vector DB
 QDRANT_API_KEY = "..."
